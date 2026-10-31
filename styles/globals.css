@@ -1,0 +1,389 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* =========================================================================
+   DESIGN "PAPIER" — plat, net, fluide
+   Principes :
+   - zero degrade : uniquement des aplats de couleur ;
+   - une seule couleur d'action (le bleu cobalt), le reste est neutre ;
+   - la profondeur vient de la couleur des surfaces et de filets fins,
+     pas d'ombres lourdes ;
+   - la fluidite vient du mouvement : ressorts, transitions longues et douces.
+   Les valeurs sont des triplets RGB pour permettre l'opacite Tailwind.
+   ========================================================================= */
+:root {
+  color-scheme: light;
+  --canvas: 246 245 242;
+  --surface: 255 255 255;
+  --surface-raised: 255 255 255;
+  --shadow: 20 22 30;
+
+  --slate-50: 250 250 248;
+  --slate-100: 243 242 239;
+  --slate-200: 229 227 222;
+  --slate-300: 205 202 195;
+  --slate-400: 118 116 111;
+  --slate-500: 96 94 90;
+  --slate-600: 72 70 67;
+  --slate-700: 52 51 48;
+  --slate-800: 33 32 30;
+  --slate-900: 20 20 22;
+
+  --brand-50: 236 241 254;
+  --brand-100: 219 229 253;
+  --brand-200: 186 204 251;
+  --brand-600: 47 82 212;
+  --brand-700: 36 64 176;
+
+  --accent: 61 99 232;
+  --accent-hover: 47 82 212;
+  --spot: 61 99 232;
+  --hairline: 20 22 30 / 0.08;
+  --highlight: 255 255 255 / 0;
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-spring: cubic-bezier(0.34, 1.4, 0.5, 1);
+}
+
+html.dark {
+  color-scheme: dark;
+  --canvas: 15 17 21;
+  --surface: 23 26 32;
+  --surface-raised: 30 34 41;
+  --shadow: 0 0 0;
+
+  --slate-50: 26 29 35;
+  --slate-100: 33 37 44;
+  --slate-200: 46 51 60;
+  --slate-300: 70 76 88;
+  --slate-400: 128 135 148;
+  --slate-500: 156 162 173;
+  --slate-600: 184 189 198;
+  --slate-700: 209 213 220;
+  --slate-800: 232 234 238;
+  --slate-900: 247 248 250;
+
+  --brand-50: 25 33 66;
+  --brand-100: 31 43 90;
+  --brand-200: 44 62 128;
+  --brand-600: 138 164 255;
+  --brand-700: 183 199 255;
+
+  --accent: 79 117 245;
+  --accent-hover: 99 134 250;
+  --spot: 138 164 255;
+  --hairline: 255 255 255 / 0.08;
+}
+
+@property --spot-a {
+  syntax: '<number>';
+  inherits: false;
+  initial-value: 0;
+}
+
+/* =========================================================================
+   Base
+   ========================================================================= */
+html {
+  scroll-behavior: smooth;
+  background: rgb(var(--canvas));
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+body {
+  @apply text-slate-900 antialiased;
+  background: transparent;
+  font-feature-settings: 'cv11', 'ss01';
+  text-rendering: optimizeLegibility;
+  -webkit-tap-highlight-color: transparent;
+  overflow-x: hidden;
+}
+img, video { max-width: 100%; }
+h1, h2, h3, .font-display { letter-spacing: -0.025em; }
+::selection { background-color: rgb(var(--accent) / 0.22); color: inherit; }
+
+/* Plus de fond decoratif : un aplat de papier uni. */
+.nx-ambient { display: none; }
+
+:where(a, button, [role='button'], summary, [tabindex]):focus-visible {
+  outline: 2px solid rgb(var(--accent));
+  outline-offset: 2px;
+  border-radius: 0.5rem;
+}
+:where(input, textarea, select):focus-visible { outline: none; }
+button, [role='button'] { touch-action: manipulation; }
+
+* { scrollbar-width: thin; scrollbar-color: rgb(var(--slate-300)) transparent; }
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-thumb {
+  background: rgb(var(--slate-300));
+  border-radius: 9999px;
+  border: 3px solid transparent;
+  background-clip: content-box;
+}
+::-webkit-scrollbar-thumb:hover { background: rgb(var(--slate-400)); border: 3px solid transparent; background-clip: content-box; }
+::-webkit-scrollbar-track { background: transparent; }
+
+::placeholder { color: rgb(var(--slate-400)); opacity: 0.85; }
+
+/* Couleurs d'etat en mode sombre */
+html.dark .bg-red-50, html.dark .hover\:bg-red-50:hover { background-color: rgb(239 68 68 / 0.12); }
+html.dark .bg-red-100 { background-color: rgb(239 68 68 / 0.2); }
+html.dark .border-red-200 { border-color: rgb(239 68 68 / 0.32); }
+html.dark .text-red-500, html.dark .text-red-600, html.dark .text-red-700 { color: #FCA5A5; }
+html.dark .bg-emerald-50 { background-color: rgb(16 185 129 / 0.12); }
+html.dark .border-emerald-200 { border-color: rgb(16 185 129 / 0.32); }
+html.dark .text-emerald-600, html.dark .text-emerald-700 { color: #6EE7B7; }
+html.dark .bg-amber-50, html.dark .bg-amber-100 { background-color: rgb(245 158 11 / 0.14); }
+html.dark .border-amber-100 { border-color: rgb(245 158 11 / 0.28); }
+html.dark .text-amber-600, html.dark .text-amber-700 { color: #FCD34D; }
+html.dark .bg-ember-50, html.dark .hover\:bg-ember-50:hover { background-color: rgb(239 79 107 / 0.13); }
+html.dark .bg-ember-100 { background-color: rgb(239 79 107 / 0.22); }
+html.dark .text-ember-600, html.dark .text-ember-700 { color: #FF8FA0; }
+html.dark .bg-violet-50 { background-color: rgb(124 140 246 / 0.14); }
+html.dark .text-violet-600 { color: #B4BEFF; }
+
+/* =========================================================================
+   Composants (prefixe nx-)
+   ========================================================================= */
+@layer components {
+  /* ---- Surfaces ------------------------------------------------------------
+     card : aplat blanc, filet fin, grands arrondis. Aucune ombre au repos.
+     glass : barre flottante opaque (barre du haut, dock mobile).
+     pop : couche au-dessus de tout (menus, modales). */
+  .nx-flat {
+    @apply rounded-xl3;
+    background: rgb(var(--surface));
+    box-shadow: 0 0 0 1px rgb(var(--slate-200));
+  }
+  .nx-card {
+    @apply rounded-xl3;
+    position: relative;
+    background: rgb(var(--surface));
+    box-shadow: 0 0 0 1px rgb(var(--slate-200));
+    transition: box-shadow 0.45s var(--ease-out-expo), transform 0.45s var(--ease-out-expo), background-color 0.3s ease;
+  }
+  .nx-card-interactive { @apply nx-card; }
+  @media (hover: hover) and (pointer: fine) {
+    .nx-card-interactive:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 0 0 1px rgb(var(--slate-300)), 0 18px 36px -18px rgb(var(--shadow) / 0.22);
+    }
+  }
+  .nx-spot { position: relative; }
+  .nx-glass {
+    background: rgb(var(--surface) / 0.92);
+    -webkit-backdrop-filter: blur(14px);
+    backdrop-filter: blur(14px);
+    border: 1px solid rgb(var(--slate-200));
+  }
+  .nx-pop {
+    @apply rounded-xl3;
+    background: rgb(var(--surface-raised));
+    box-shadow: 0 0 0 1px rgb(var(--slate-200)), 0 24px 56px -16px rgb(var(--shadow) / 0.32);
+  }
+  .nx-scrim { @apply bg-ink/45; -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); }
+
+  /* ---- Boutons : pilules pleines ------------------------------------------- */
+  .nx-btn {
+    @apply relative inline-flex items-center justify-center gap-2 h-10 px-5 rounded-full text-sm font-semibold select-none whitespace-nowrap
+      transition-[transform,background-color,box-shadow,color,opacity] duration-300 ease-out-expo active:scale-[0.96]
+      disabled:opacity-50 disabled:pointer-events-none;
+  }
+  .nx-btn-sm { @apply h-8 px-3.5 text-xs; }
+  .nx-btn-lg { @apply h-12 px-7 text-[0.95rem]; }
+  .nx-btn-primary { @apply nx-btn text-white; background: rgb(var(--accent)); }
+  .nx-btn-primary:hover { background: rgb(var(--accent-hover)); box-shadow: 0 8px 20px -8px rgb(var(--accent) / 0.6); }
+  .nx-btn-secondary {
+    @apply nx-btn text-slate-800;
+    background: rgb(var(--surface));
+    box-shadow: inset 0 0 0 1px rgb(var(--slate-300));
+  }
+  .nx-btn-secondary:hover { background: rgb(var(--slate-100)); }
+  .nx-btn-ghost { @apply nx-btn text-slate-600 hover:bg-slate-100 hover:text-slate-900; }
+  .nx-btn-danger { @apply nx-btn bg-ember-600 text-white hover:bg-ember-700; }
+  .nx-icon-btn {
+    @apply inline-flex items-center justify-center w-10 h-10 rounded-full text-slate-500
+      transition-[transform,background-color,color] duration-300 ease-out-expo hover:bg-slate-100 hover:text-slate-900 active:scale-90;
+  }
+
+  /* ---- Champs : fond plein, aucun contour au repos ------------------------- */
+  .nx-field {
+    @apply w-full rounded-xl2 px-4 py-2.5 text-sm text-slate-900 outline-none
+      transition-[background-color,box-shadow] duration-300 placeholder:text-slate-400;
+    background: rgb(var(--slate-100));
+    box-shadow: inset 0 0 0 1.5px transparent;
+  }
+  .nx-field:hover { background: rgb(var(--slate-200) / 0.7); }
+  .nx-field:focus {
+    background: rgb(var(--surface));
+    box-shadow: inset 0 0 0 1.5px rgb(var(--accent)), 0 0 0 4px rgb(var(--accent) / 0.14);
+  }
+
+  /* ---- Controle segmente ---------------------------------------------------- */
+  .nx-segmented { @apply inline-flex items-center gap-0.5 p-1 rounded-full; background: rgb(var(--slate-100)); }
+  .nx-segmented-item {
+    @apply relative inline-flex items-center justify-center gap-1.5 h-9 px-4 text-sm font-medium rounded-full text-slate-500
+      transition-colors hover:text-slate-800;
+  }
+  .nx-segmented-item[aria-selected='true'], .nx-segmented-item[aria-checked='true'] { @apply text-slate-900; }
+  .nx-segmented-thumb {
+    @apply absolute inset-0 rounded-full;
+    background: rgb(var(--surface-raised));
+    box-shadow: 0 1px 3px rgb(var(--shadow) / 0.14);
+  }
+
+  /* ---- Pastilles, badges ---------------------------------------------------- */
+  .nx-chip {
+    @apply inline-flex items-center gap-1.5 h-8 px-3.5 rounded-full text-xs font-medium bg-slate-100 text-slate-600 transition-colors hover:bg-slate-200;
+  }
+  .nx-chip-active { @apply bg-brand-50 text-brand-600 hover:bg-brand-100; }
+  .nx-badge {
+    @apply inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full bg-ember-500 text-white text-[11px] font-semibold nx-tabular animate-badge-pop;
+  }
+  .nx-kbd {
+    @apply inline-flex items-center justify-center h-5 min-w-[20px] px-1.5 rounded-md text-[10.5px] font-medium text-slate-500 bg-slate-100;
+  }
+  .nx-eyebrow { @apply text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-400; }
+  .nx-divider { @apply h-px bg-slate-200; }
+  .nx-aurora-text { color: rgb(var(--brand-600)); }
+  .nx-presence {
+    position: relative;
+    display: inline-block;
+    width: 10px; height: 10px;
+    border-radius: 9999px;
+    background: #22C55E;
+    box-shadow: 0 0 0 2px rgb(var(--surface));
+  }
+  .nx-presence::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: inherit;
+    animation: pulse-ring 2.4s cubic-bezier(0.16, 1, 0.3, 1) infinite;
+  }
+
+  /* ---- Squelette : aplat qui respire --------------------------------------- */
+  .nx-skeleton {
+    border-radius: 0.75rem;
+    background: rgb(var(--slate-200) / 0.8);
+    animation: nx-breathe 1.6s ease-in-out infinite;
+  }
+  .nx-tabular { font-variant-numeric: tabular-nums; }
+
+  .nx-page { animation: page-in 0.6s var(--ease-out-expo) backwards; }
+
+  /* ---- Bulles de conversation ---------------------------------------------- */
+  .nx-bubble-own { color: #fff; background: rgb(var(--accent)); }
+  .nx-bubble-other { background: rgb(var(--slate-100)); }
+}
+
+@layer utilities {
+  .pb-safe { padding-bottom: env(safe-area-inset-bottom, 0px); }
+  .pt-safe { padding-top: env(safe-area-inset-top, 0px); }
+  .scrollbar-none { scrollbar-width: none; -ms-overflow-style: none; }
+  .scrollbar-none::-webkit-scrollbar { display: none; }
+  .text-balance { text-wrap: balance; }
+  .text-pretty { text-wrap: pretty; }
+  .preserve-3d { transform-style: preserve-3d; }
+  .perspective-1000 { perspective: 1000px; }
+}
+
+/* Focus de la zone de redaction : le contour passe au bleu, tout en douceur. */
+.nx-aurora-focus { transition: box-shadow 0.4s var(--ease-out-expo); }
+.nx-aurora-focus:focus-within { box-shadow: 0 0 0 1.5px rgb(var(--accent)), 0 0 0 5px rgb(var(--accent) / 0.12); }
+@keyframes nx-breathe { 0%, 100% { opacity: 1; } 50% { opacity: 0.55; } }
+
+@keyframes page-in {
+  from { opacity: 0; transform: translateY(12px) scale(0.995); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes pulse-ring-legacy { 0% { box-shadow: 0 0 0 0 rgb(var(--spot) / 0.45); } 100% { box-shadow: 0 0 0 10px rgb(var(--spot) / 0); } }
+@keyframes route-bar { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+
+/* Barre de progression de navigation : fine, lumineuse, jamais intrusive */
+.nx-route-bar {
+  position: fixed;
+  top: 0; inset-inline: 0;
+  height: 2px;
+  z-index: 200;
+  transform-origin: left;
+  background: rgb(var(--accent));
+  pointer-events: none;
+}
+[dir='rtl'] .nx-route-bar { transform-origin: right; }
+
+/* Changement de theme : une onde circulaire part du bouton et revele le
+   nouveau theme (View Transitions API). Sans support, le theme bascule
+   simplement. Le script pose --vt-x / --vt-y / --vt-r. */
+::view-transition-old(root), ::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+::view-transition-old(root) { z-index: 1; }
+::view-transition-new(root) { z-index: 2; }
+html.nx-theme-vt::view-transition-new(root) {
+  animation: nx-reveal 0.8s var(--ease-out-expo) both;
+}
+@keyframes nx-reveal {
+  from { clip-path: circle(0px at var(--vt-x, 50%) var(--vt-y, 0%)); }
+  to { clip-path: circle(var(--vt-r, 150vmax) at var(--vt-x, 50%) var(--vt-y, 0%)); }
+}
+
+/* Curseur (thumb) personnalise pour les sliders a double poignee (extrait musical du profil) */
+.range-thumb { -webkit-appearance: none; appearance: none; }
+.range-thumb::-webkit-slider-runnable-track { background: transparent; }
+.range-thumb::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none; pointer-events: auto;
+  width: 16px; height: 16px; border-radius: 9999px;
+  background: #3D63E8; border: 2px solid rgb(var(--surface));
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.35); cursor: pointer; margin-top: 0;
+}
+.range-thumb::-moz-range-track { background: transparent; }
+.range-thumb::-moz-range-thumb {
+  pointer-events: auto; width: 16px; height: 16px; border-radius: 9999px;
+  background: #3D63E8; border: 2px solid rgb(var(--surface));
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.35); cursor: pointer;
+}
+
+/* ---------- Support RTL (arabe) ---------- */
+[dir='rtl'] .translate-x-full { --tw-translate-x: -100%; }
+[dir='rtl'] .-translate-x-full { --tw-translate-x: 100%; }
+[dir='rtl'] .-translate-x-1\/2 { --tw-translate-x: 50%; }
+[dir='rtl'] .translate-x-1\/2 { --tw-translate-x: -50%; }
+[dir='rtl'] .translate-x-5 { --tw-translate-x: -1.25rem; }
+[dir='rtl'] .translate-x-6 { --tw-translate-x: -1.5rem; }
+[dir='rtl'] .translate-x-0\.5 { --tw-translate-x: -0.125rem; }
+@media (max-width: 767px) {
+  [dir='rtl'] .max-md\:invisible { visibility: hidden; }
+}
+[dir='rtl'] svg.lucide-chevron-right,
+[dir='rtl'] svg.lucide-chevron-left,
+[dir='rtl'] svg.lucide-chevrons-right,
+[dir='rtl'] svg.lucide-chevrons-left,
+[dir='rtl'] svg.lucide-arrow-right,
+[dir='rtl'] svg.lucide-arrow-left,
+[dir='rtl'] svg.lucide-reply,
+[dir='rtl'] svg.lucide-send,
+[dir='rtl'] svg.lucide-log-out {
+  scale: -1 1;
+}
+.force-ltr { direction: ltr; }
+[dir='rtl'] input[type='email'],
+[dir='rtl'] input[type='url'],
+[dir='rtl'] input[type='tel'],
+[dir='rtl'] input[inputmode='numeric'] { direction: ltr; text-align: end; }
+html[lang='ar'] body { font-family: 'Noto Sans Arabic', 'Geist', system-ui, sans-serif; }
+html[lang='ja'] body { font-family: 'Hiragino Sans', 'Noto Sans JP', 'Yu Gothic', 'Geist', system-ui, sans-serif; }
+html[lang='zh-CN'] body { font-family: 'PingFang SC', 'Microsoft YaHei', 'Noto Sans SC', 'Geist', system-ui, sans-serif; }
+
+/* Accessibilite : respecte la preference de mouvement reduit */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

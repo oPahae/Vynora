@@ -1,0 +1,69 @@
+# Dependencies
+node_modules/
+.pnp/
+.pnp.*
+
+# Build
+.next/
+out/
+dist/
+build/
+coverage/
+
+# Environment variables (secrets)
+.env
+.env.*
+!.env.example
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+
+# OS generated files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDEs
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+
+# Cache
+.cache/
+.parcel-cache/
+.turbo/
+.vercel/
+
+# Testing
+.nyc_output/
+
+# Temporary files
+*.tmp
+*.temp
+*.swp
+*.bak
+
+# Database
+*.sqlite
+*.sqlite3
+*.db
+
+# Certificates and private keys
+*.pem
+*.key
+*.crt
+
+# Deployment
+*.tsbuildinfo
+
+# Miscellaneous
+.DS_Store
