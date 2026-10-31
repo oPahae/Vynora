@@ -1,4 +1,4 @@
-# Nexus — Reseau social
+# Vynora — Reseau social
 
 Reseau social complet inspire de Facebook, Threads et Discord, construit avec
 Next.js (Pages Router), React, TailwindCSS, MySQL et Socket.IO.
