@@ -4,7 +4,7 @@ Reseau social complet inspire de Facebook, Threads et Discord, construit avec
 Next.js (Pages Router), React, TailwindCSS, MySQL et Socket.IO.
 
 Projet **complet** — les 10 phases de developpement initiales ont ete livrees
-et verifiees, avec une refonte complete du design (identite visuelle "Nexus",
+et verifiees, avec une refonte complete du design (identite visuelle "Vynora",
 palette cobalt-violet/corail, typographie Space Grotesk + Inter, mode sombre)
 et un stockage de tous les medias en BLOB dans MySQL plutot que sur disque.
 Voir la section [Fonctionnalites](#fonctionnalites) pour le detail.
