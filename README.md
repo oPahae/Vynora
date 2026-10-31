@@ -1,598 +1,513 @@
-# Vynora — Reseau social
+<div align="center">
 
-Reseau social complet inspire de Facebook, Threads et Discord, construit avec
-Next.js (Pages Router), React, TailwindCSS, MySQL et Socket.IO.
+# Vynora
 
-Projet **complet** — les 10 phases de developpement initiales ont ete livrees
-et verifiees, avec une refonte complete du design (identite visuelle "Vynora",
-palette cobalt-violet/corail, typographie Space Grotesk + Inter, mode sombre)
-et un stockage de tous les medias en BLOB dans MySQL plutot que sur disque.
-Voir la section [Fonctionnalites](#fonctionnalites) pour le detail.
+**Réseau social full-stack : fil d'actualité, reels, stories, messagerie temps réel, appels audio/vidéo, serveurs communautaires, premium et administration.**
 
-> **Extension 2026 (complete)** : un second lot de fonctionnalites a ete
-> ajoute par phases validees une a une : statut personnalise, publications
-> enregistrees/epinglees, brouillons, notifications par categorie, feed
-> personnalise par score, recherche globale, notifications push,
-> assistant IA, groupes/communautes, page Explorer, geolocalisation et
-> statistiques personnelles. Voir [Nouvelles fonctionnalites](#nouvelles-fonctionnalites-en-cours)
-> pour le detail de chaque phase et les limitations connues.
+![Next.js](https://img.shields.io/badge/Next.js-14-000000?logo=nextdotjs&logoColor=white)
+![React](https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=black)
+![Node.js](https://img.shields.io/badge/Node.js-%E2%89%A518.17-339933?logo=nodedotjs&logoColor=white)
+![MySQL](https://img.shields.io/badge/MySQL-8-4479A1?logo=mysql&logoColor=white)
+![Socket.IO](https://img.shields.io/badge/Socket.IO-4-010101?logo=socketdotio&logoColor=white)
+![Tailwind CSS](https://img.shields.io/badge/Tailwind-3-06B6D4?logo=tailwindcss&logoColor=white)
+![WebRTC](https://img.shields.io/badge/WebRTC-P2P-333333?logo=webrtc&logoColor=white)
+![i18n](https://img.shields.io/badge/i18n-8%20langues-blueviolet)
+
+</div>
+
+---
+
+## Sommaire
+
+- [À propos](#à-propos)
+- [Fonctionnalités](#fonctionnalités)
+- [Stack technique](#stack-technique)
+- [Architecture](#architecture)
+- [Prérequis](#prérequis)
+- [Installation](#installation)
+- [Configuration (variables d'environnement)](#configuration-variables-denvironnement)
+- [Base de données](#base-de-données)
+- [Scripts disponibles](#scripts-disponibles)
+- [Administration](#administration)
+- [Aperçu de l'API](#aperçu-de-lapi)
+- [Temps réel (Socket.IO)](#temps-réel-socketio)
+- [Sécurité](#sécurité)
+- [Internationalisation](#internationalisation)
+- [Structure du projet](#structure-du-projet)
+- [Déploiement en production](#déploiement-en-production)
+- [Dépannage](#dépannage)
+- [Contribuer](#contribuer)
+- [Licence](#licence)
+
+---
+
+## À propos
+
+**Vynora** est une application de réseau social complète construite avec **Next.js (Pages Router)** et un **serveur Node.js personnalisé** qui embarque **Socket.IO** pour le temps réel (messagerie, présence, notifications, signalisation WebRTC). Les données sont stockées dans **MySQL**, y compris les médias (avatars, images, vidéos, messages vocaux) servis par une route authentifiée interne.
+
+Le projet couvre l'ensemble d'une plateforme moderne : contenu social, messagerie, communautés façon « serveurs », monétisation par abonnement Premium (PayPal), modération et outils d'administration.
+
+> Le nom de l'application est centralisé dans `lib/constants.js` (`APP_NAME`) : une seule valeur à modifier pour renommer l'interface.
+
+---
+
+## Fonctionnalités
+
+### Authentification et comptes
+- Inscription en **deux étapes avec code de vérification par e-mail**
+- Connexion par **JWT** stocké dans un cookie HTTP (`authToken`)
+- **reCAPTCHA v2** (activé automatiquement si la clé secrète est définie)
+- Indicateur de **robustesse du mot de passe**
+- **Mot de passe oublié** (code par e-mail) et **retrouver mon compte** (recherche, envoi de code, réinitialisation)
+- **Changement d'e-mail** avec confirmation par code
+- **Désactivation** et **suppression** de compte
+- **Gestion des appareils** : alerte (notification + e-mail) à chaque connexion depuis un nouvel appareil, avec localisation approximative
+- **Blocage** d'utilisateurs
+
+### Profil
+- Avatar et couverture (publiés comme publications dédiées), bio, travail, formation, ville, liens sociaux
+- **Musique de profil** (lecteur intégré)
+- **Statut personnalisé** (icône + texte, préréglages « En train de coder », « Ne pas déranger », etc.) et **statut en ligne** (désactivable)
+- **Publications épinglées**, reels et collections affichés sur le profil
+- **Partage par QR code** et **scanner de QR code**
+- **Profil privé**, avec écrans dédiés pour les profils privés et bloqués
+- **Visiteurs du profil** : compteur pour tous, détail réservé aux comptes Premium
+
+### Publications et fil d'actualité
+- Texte, images et vidéos multiples, avec lightbox et lecteur vidéo
+- **Visibilité fine** : Public, Amis, Privé, *Sauf certaines personnes*, *Personnes précises*
+- **Mentions** (`@`) avec autocomplétion, **hashtags** et pages de hashtag, **localisation**
+- **6 réactions** : J'aime, Je n'aime pas, Haha, Wouah, Grr, Triste
+- Commentaires **imbriqués** (réponses) avec réactions
+- **Partage** (repost avec citation), **enregistrement**, **épinglage**, **brouillons**, édition
+- Statistiques de vues, liste des réacteurs, des partageurs et des spectateurs
+- **Fil personnalisé** par un algorithme de scoring **déterministe et documenté** (sans aléatoire ni modèle externe), combinant 8 composantes : récence (demi-vie de 30 h), proximité sociale, affinité avec l'auteur, affinité par messages, affinité par hashtags, engagement, vélocité initiale et activité de l'auteur. Voir `lib/feedScoring.js`
+- **Assistant IA dans le composeur** : améliorer, corriger, reformuler, résumer, traduire, générer une légende
+
+### Reels
+- Vidéos courtes en flux vertical (durée max **180 s**, taille max configurable, **200 Mo** par défaut)
+- Réactions, commentaires avec réactions, masquage de reels, compteur de vues
+
+### Stories
+- Stories **éphémères** (texte avec couleur de fond, image ou vidéo ; vidéo limitée à **5 minutes**)
+- Barre de stories, visionneuse, réactions, liste des spectateurs
+
+### Collections
+- Dossiers ou playlists pour organiser des publications, avec visibilité privée, amis ou publique et couleurs personnalisables
+
+### Amis et découverte
+- Demandes d'amis (envoyer, annuler, accepter, refuser), suppression, **suggestions** (amis en commun)
+- **Explorer** : hashtags tendance (fenêtre de 7 jours) et contenu public
+- **Recherche intelligente tolérante aux fautes de frappe** (utilisateurs, hashtags, publications) avec historique (15 entrées par utilisateur)
+
+### Messagerie temps réel
+- Conversations privées et de groupe
+- Messages texte, médias et **messages vocaux** (lecteur audio intégré)
+- Indicateur de saisie, accusés de lecture, **transfert** de messages, **favoris**, suppression
+- **Appels audio et vidéo 1-à-1** en WebRTC pair-à-pair (sonnerie 45 s, détection « occupé », sonneries et synchronisation multi-onglets)
+
+### Groupes communautaires
+- Groupes **publics** ou **privés** (demandes d'adhésion), rôles `owner` / `admin` / `member`
+- Publications de groupe, invitations, avatar et couverture
+
+### Serveurs (type Discord)
+- **Catégories**, **salons textuels et vocaux**, salons privés
+- **Rôles hiérarchiques** avec **15 permissions** (masque de bits) : administrateur, gérer le serveur, les salons, les rôles, supprimer les messages, expulser, créer des invitations, envoyer des messages, se connecter, parler, caméra, partage d'écran, rendre muet, gérer le mode lent, ignorer le mode lent
+- **Mode lent** par salon, **mentions**, liens d'invitation
+- **Vocal multi-participants** avec caméra, partage d'écran et mute modérateur
+
+### Notifications
+- Notifications **in-app** catégorisées (cloche et page dédiée, marquer comme lu / tout lire)
+- **Notifications push Web Push** (VAPID), désactivables proprement si non configurées
+
+### Premium (PayPal)
+- Paiement via **PayPal Orders v2** avec montant **toujours fixé côté serveur**
+- Prix, devise de facturation, taux de change, durée (ou à vie) et paramètres de boost **modifiables depuis l'administration**
+- Avantages : **badge vérifié**, **boost de publications** (48 h par défaut, 3 boosts actifs max), **détail des visiteurs du profil**
+- Les administrateurs bénéficient automatiquement du Premium à vie
+- Valeurs par défaut : 49 MAD, 30 jours, facturation en USD (taux 0,10)
+
+### Modération et administration
+- **Signalements** (publications, commentaires, reels, groupes, serveurs, stories, utilisateurs)
+- **Bannissements** avec motif et **demandes de révision** (page `/appeal` accessible sans connexion)
+- Un utilisateur banni ou supprimé voit ses connexions temps réel **coupées immédiatement**
+- Tableau de bord, journal d'audit, gestion du contenu et des paiements (voir [Administration](#administration))
+
+### Expérience utilisateur
+- **Thème clair / sombre**
+- **8 langues**, dont l'arabe avec support **RTL**
+- Interface responsive avec barre d'onglets mobile, squelettes de chargement, défilement infini, animations (Framer Motion), toasts et boîtes de confirmation
+- **PWA** : manifeste et service worker pour les notifications push
+- **Statistiques personnelles** avec graphique d'engagement sur 8 semaines
+
+---
 
 ## Stack technique
 
-| Domaine | Technologie |
-|---|---|
-| Framework | Next.js 14 (Pages Router, JavaScript uniquement) |
-| UI | React 18, TailwindCSS, Framer Motion, lucide-react |
-| Base de donnees | MySQL / MariaDB (mysql2) |
-| Authentification | JWT (jose) + bcryptjs + cookies HTTP Only |
-| Temps reel | Socket.IO (serveur Node personnalise) |
-| Upload de fichiers | formidable (parsing en memoire, aucune ecriture disque) |
-| Stockage des medias | BLOB en base de donnees MySQL (table `media`), servis via `/api/media/[id]` |
-| Images | next/image |
-| Audio / Video | HTML5 natif |
+| Couche | Technologies |
+| --- | --- |
+| Framework | Next.js 14.2 (Pages Router), React 18 |
+| Serveur | Node.js, serveur HTTP personnalisé (`server.js`) |
+| Temps réel | Socket.IO 4 (client et serveur), WebRTC |
+| Base de données | MySQL (`mysql2`), schéma utf8mb4 |
+| Authentification | `jose` (JWT), `bcryptjs` |
+| Uploads | `formidable` (traitement en mémoire, stockage `LONGBLOB`) |
+| Paiement | PayPal Orders v2 (API REST) |
+| Notifications | `web-push` (VAPID) |
+| UI | Tailwind CSS 3, Framer Motion, lucide-react |
+| QR code | `qrcode` (génération), `jsqr` (lecture) |
+| Qualité | ESLint (`eslint-config-next`) |
 
-Aucune librairie superflue : pas de TypeScript, pas de Prisma, pas de Redux,
-pas de framework CSS externe, pas de CSS Modules ni de styled-components.
+---
 
-## Fonctionnalites
+## Architecture
 
-- **Authentification** : inscription, connexion, deconnexion, JWT en cookie
-  HTTP Only, middleware de protection des routes, hachage bcrypt
-- **Captcha** : Google reCAPTCHA v2 (case a cocher) sur la connexion,
-  verifie cote serveur (voir la section « Configuration » ci-dessous)
-- **Mot de passe oublie** : code a 6 chiffres envoye par email (valable
-  15 min, 5 essais, usage unique), puis choix d'un nouveau mot de passe
-- **Profils** : photo de profil, couverture, bio, travail, etudes, ville,
-  pays, edition complete
-- **Amis** : invitations, acceptation, refus, annulation, suppression,
-  blocage/deblocage, suggestions basees sur les amis en commun
-- **Publications** : texte, images, videos multiples, hashtags, mentions
-  `@`, visibilite (publique / amis / privee / tout le monde sauf... /
-  personnes precises) verifiee cote serveur, edition, suppression, copie de
-  lien, partage
-- **Commentaires** : texte, image, video, audio, edition, suppression,
-  reponses imbriquees infinies
-- **Reactions** : 6 types (J'aime, J'adore, Haha, Wouah, Grr, Triste) sur
-  publications, commentaires et stories
-- **Fil d'actualite** : agregation des publications d'amis, publiques et
-  partagees, avec pagination infinie
-- **Stories** : texte, photo, video, expiration automatique a 24h, vues,
-  reactions
-- **Messagerie temps reel** : conversations privees, texte/image/video/
-  audio/fichier, edition, suppression (pour moi / pour tous), accuses de
-  lecture, indicateur de frappe, presence en ligne
-- **Appels audio / video et partage d'ecran** : depuis l'en-tete d'une
-  conversation privee, en pair-a-pair (WebRTC). Sonnerie sur toutes les pages
-  et tous les onglets, micro / camera / partage d'ecran activables en cours
-  d'appel, mode reduit, refus des appels entre utilisateurs bloques
-- **Notifications temps reel** : amis, messages, commentaires, reponses,
-  mentions, likes, partages, stories
-- **Parametres** : email, mot de passe, theme clair/sombre, compte prive,
-  gestion des utilisateurs bloques
+```
+┌────────────────────────┐        ┌───────────────────────────────────────┐
+│   Navigateur (React)   │◄──────►│  server.js  (Node.js HTTP)            │
+│  Pages + composants    │  HTTP  │   ├─ Next.js (pages + routes /api/*)  │
+│  Socket.IO client      │        │   └─ Socket.IO (/api/socket)          │
+│  WebRTC (appels)       │        │        ├─ présence, messages, typing  │
+└───────────┬────────────┘        │        ├─ server/callSignaling.js     │
+            │                     │        └─ server/guildVoiceSignaling.js│
+            │  flux audio/vidéo   └──────────────────┬────────────────────┘
+            │  pair-à-pair                           │
+            ▼                                        ▼
+   ┌──────────────────┐                     ┌────────────────┐
+   │ STUN / TURN      │                     │     MySQL      │
+   │ (ICE_SERVERS)    │                     │ (données+médias)│
+   └──────────────────┘                     └────────────────┘
+```
 
-## Nouvelles fonctionnalites (en cours)
+Points clés :
 
-Ajout progressif, par phases validees une a une, des fonctionnalites du
-second cahier des charges. Chaque phase reste additive : aucune
-fonctionnalite existante n'a ete supprimee ni modifiee dans son
-comportement d'origine.
+- **Serveur personnalisé** : `npm run dev` et `npm start` lancent `server.js`, qui sert Next.js **et** Socket.IO sur le même port.
+- **Signalisation WebRTC uniquement** : le serveur ne transporte jamais les flux audio/vidéo, les navigateurs communiquent en pair-à-pair.
+- **Médias en base** : les fichiers sont stockés dans la table `media` et servis via `/api/media/[id]` (route authentifiée). L'optimiseur d'images Next.js est donc désactivé (`images.unoptimized`), car il ne transmet pas le cookie d'authentification.
+- **Présence symétrique** : si un utilisateur masque son statut en ligne, il ne voit pas non plus celui des autres.
 
-### Phase 1 — Livree
+---
 
-- **🟢 Statut personnalise** : distinct du statut en ligne/hors ligne
-  (Socket.IO, inchange). Table `presenceStatus` (a ne pas confondre avec la
-  table `status` existante, qui gere les *stories*). Presets (En train de
-  coder, de jouer, d'etudier, d'ecouter de la musique, Ne pas deranger) ou
-  texte + emoji libres, expiration facultative (1h / 4h / aujourd'hui /
-  jusqu'a modification). Reglable depuis l'icone dediee dans la barre de
-  navigation ; affiche sur le profil, dans la liste d'amis et dans la liste
-  de conversations, en respectant les memes regles de confidentialite que le
-  profil (bloque = invisible, profil prive = reserve aux amis).
-- **🔖 Publications enregistrees** : bouton "Enregistrer" dans le menu de
-  chaque publication, page dediee `/saved` avec filtres (Tous / Photos /
-  Videos / Publications) et date d'enregistrement affichee. Table
-  `savedPost`.
-- **📌 Publications epinglees** : jusqu'a 3 par profil, bandeau dedie en
-  haut du profil, badge visuel "Epingle", verification serveur que seul le
-  proprietaire peut epingler ses propres publications. Table `pinnedPost`.
-- **📝 Brouillons** : sauvegarde explicite depuis le composeur ("Brouillon"),
-  page `/drafts` (modifier / publier / supprimer), support du texte, de la
-  visibilite et des medias (images/videos). Limite de 30 brouillons par
-  utilisateur pour eviter les abus de stockage. Tables `postDraft` et
-  `draftMedia`.
-- **🔔 Notifications par categorie** : onglets Tout / J'aime / Commentaires /
-  Amis / Mentions / Partages sur `/notifications`, filtrage cote serveur.
-  Compteur non-lu, "tout marquer comme lu" et navigation vers le contenu
-  concerne existaient deja et ont ete conserves tels quels. La categorie
-  "Messages" du cahier des charges n'a pas ete recreee : l'application
-  genere deja un badge de messages non lus separe (page Messages) et ne
-  cree pas de notifications de type "message" par conception — dupliquer ce
-  compteur dans le centre de notifications aurait ete redondant et source
-  d'incoherence.
+## Prérequis
 
-**Non traite dans cette phase** (prevu pour les phases suivantes, non
-encore implemente) : feed personnalise par score, recherche globale
-utilisateurs/hashtags/publications, page Explorer, groupes/communautes,
-statistiques personnelles, assistant IA dans le composeur, notifications
-push (Web Push), geolocalisation des publications.
+- **Node.js** ≥ 18.17 (requis par Next.js 14) et **npm**
+- **MySQL 8** (ou MariaDB compatible) avec support `utf8mb4`
+- *(Optionnel)* Compte PayPal Developer, clés VAPID, clés reCAPTCHA v2, serveur TURN
 
-### Phase 2 — Livree
-
-- **📰 Feed personnalise par score** : la route existante `/api/feed` a ete
-  enrichie (pas de nouvelle route) avec un mode "Pour vous" par defaut et un
-  mode "Recent" (chronologique, comportement d'origine strictement
-  conserve, accessible via `?sort=recent` ou le bouton dans l'interface).
-  Le score est deterministe (aucun alea, aucune IA) et documente en detail
-  dans `lib/feedScoring.js` : ponderation de la recence (decroissance
-  exponentielle, demi-vie 30h), de la proximite sociale (ami / ami commun /
-  inconnu), de l'affinite avec l'auteur (historique d'interactions sur 30
-  jours), de l'affinite avec les hashtags interagis recemment, et de
-  l'engagement global du post (likes/commentaires/partages, normalise). Une
-  passe de diversite limite a 2 le nombre de publications consecutives du
-  meme auteur. Un utilisateur sans amis ni historique retombe naturellement
-  sur un classement recence + engagement (pas de code special requis).
-  **Notes de performance** : le lot de candidats (200 publications
-  visibles les plus recentes) est recalcule a chaque requete de page ; ce
-  choix privilegie la simplicite et la fraicheur des donnees pour un reseau
-  de taille moyenne. Sur un reseau a tres grande echelle, la piste
-  d'optimisation recommandee serait de mettre en cache le score par
-  utilisateur (ex. Redis, TTL de quelques minutes) plutot que de le
-  recalculer systematiquement.
-- **🔎 Recherche globale avancee** : nouvelle route unifiee `/api/search`
-  (personnes + hashtags + publications, respecte les blocages et la
-  confidentialite existante) plutot que des routes dupliquees — la route
-  `/api/users/search` deja existante n'a pas ete touchee et continue de
-  servir l'ajout d'amis. Barre de recherche dans la navbar (apercu en
-  direct avec debounce 300ms, recherches recentes) et page `/search`
-  dediee avec onglets Tout / Personnes / Hashtags / Publications,
-  pagination progressive. Historique de recherche par utilisateur
-  (`searchHistory`, 15 entrees max, purge automatique des plus anciennes),
-  avec suppression individuelle ou totale.
-
-**Non traite dans les phases suivantes** (a venir) : page Explorer,
-groupes/communautes, statistiques personnelles, assistant IA dans le
-composeur, notifications push (Web Push), geolocalisation des
-publications.
-
-### Phase 3 — Livree
-
-- **🔔 Notifications push (Web Push)** : couche supplementaire ajoutee au
-  point d'entree unique `createNotification` (`lib/notifications.js`) —
-  aucun des tres nombreux appelants existants (likes, commentaires,
-  reponses, partages, mentions, demandes/acceptations d'ami...) n'a ete
-  modifie, les notifications in-app continuent de fonctionner exactement
-  comme avant. Service Worker (`public/sw.js`), abonnement gere cote
-  client (`lib/pushClient.js`) avec demande d'autorisation explicite
-  (jamais automatique), reglage dans Parametres > Notifications. Cote
-  serveur (`lib/push.js`) : stockage securise des abonnements
-  (`pushSubscription`, un par navigateur/appareil, dedoublonne par
-  `endpoint`), suppression automatique des abonnements expires/invalides
-  (reponses HTTP 404/410 du service push), et non-envoi du push si
-  l'utilisateur a deja une session Socket.IO active (evite la double
-  alerte in-app + push). Sans cles VAPID configurees, la fonctionnalite
-  reste desactivee proprement (aucune erreur, le reste de l'application
-  n'est pas affecte) — voir "Configuration des notifications push"
-  ci-dessous.
-- **🤖 Assistant IA du composeur** : bouton "✨ Assistant IA" dans le
-  composeur et dans l'edition de brouillon, avec 6 actions (ameliorer,
-  corriger, reformuler, resumer, traduire, generer une legende). Appel a
-  l'API Anthropic (Claude) exclusivement depuis le backend
-  (`lib/aiAssistant.js` + route `/api/ai/assist`) : la cle API n'est
-  jamais exposee au frontend. Limite de frequence (15 requetes / 10 min
-  par utilisateur, en memoire), delai d'attente de 20s, longueur de texte
-  plafonnee (2000 caracteres), messages d'erreur clairs (cle invalide,
-  service indisponible, delai depasse). Sans `AI_API_KEY` configuree,
-  l'assistant se desactive proprement au lieu d'utiliser une fausse cle —
-  voir "Configuration de l'assistant IA" ci-dessous. **Verifie** : la
-  route a ete testee avec une vraie requete reseau vers l'API Anthropic
-  (cle invalide volontaire) pour confirmer le format de requete et la
-  gestion d'erreur ; un test avec une cle valide reste a faire par vous
-  lors du deploiement.
-
-**Non traite dans la prochaine phase** (a venir) : page Explorer,
-groupes/communautes, statistiques personnelles, geolocalisation des
-publications.
-
-### Phase 4 — Livree
-
-- **👥 Groupes/communautes** : creation (nom, description, public/prive),
-  adhesion immediate (public) ou sur demande avec approbation (prive),
-  roles owner/admin/member, exclusion de membres (regles : le proprietaire
-  ne peut etre exclu, un admin ne peut pas exclure un autre admin),
-  promotion/retrogradation admin reservee au proprietaire, suppression du
-  groupe (cascade sur ses membres et publications), moderation des
-  publications par les admins/owner. Nouvelles tables `communityGroup` et
-  `communityGroupMember`, colonne `post.groupId`. La visibilite d'une
-  publication de groupe est geree par une branche dediee, ajoutee en tete
-  de `canViewPost` (`lib/posts.js`) : elle ne modifie ni ne contourne la
-  logique de visibilite existante pour les publications hors groupe. Les
-  publications de groupe sont volontairement exclues du fil d'actualite
-  principal et de la recherche globale (espace dedie a la page du groupe),
-  pour eviter toute confusion entre contenu personnel et contenu de
-  groupe. Limitation assumee : le blocage entre utilisateurs ne s'applique
-  pas au contenu d'un groupe partage (comportement usuel des groupes sur
-  la plupart des reseaux sociaux — le blocage empeche les interactions
-  directes, pas la coexistence dans un espace commun).
-- **🔥 Page Explorer** (`/explore`) : hashtags tendance (7 derniers jours),
-  publications populaires (classees par engagement reel, jamais
-  aleatoire), publications recentes, et une section "Utilisateurs a
-  decouvrir" qui **reutilise la route existante** `/api/friends/suggestions`
-  plutot que d'en dupliquer la logique.
-- **🗺️ Geolocalisation des publications** : champ texte facultatif
-  (`post.location`, ex. "Casablanca, Morocco") ajoutable/modifiable/
-  supprimable depuis le composeur et l'edition d'une publication, jamais
-  detecte automatiquement (aucun appel a la geolocalisation du navigateur
-  sans action explicite de l'utilisateur, conformement au cahier des
-  charges). Affiche sur la publication avec une icone dediee, respecte la
-  visibilite existante de la publication (aucune regle de confidentialite
-  separee necessaire).
-- **📊 Statistiques personnelles** (`/stats`) : publications, reactions et
-  commentaires recus, partages, vues, nombre d'amis — toutes ces valeurs
-  proviennent de requetes reelles sur la base de donnees, jamais de
-  donnees inventees. Graphique d'evolution de l'engagement sur 8 semaines,
-  dessine en SVG leger (`components/stats/engagementChart.jsx`) sans
-  dependance de librairie graphique supplementaire. **Verifie** : le
-  decoupage par semaine ISO calcule cote JavaScript a ete teste face a
-  l'equivalent SQL `YEARWEEK(date, 3)` de MySQL sur plusieurs dates,
-  y compris des cas limites de fin/debut d'annee, pour garantir que les
-  deux cotes s'alignent exactement.
-
-Les 13 fonctionnalites du cahier des charges sont desormais toutes
-livrees. Voir "Limitations connues" ci-dessous pour les quelques
-simplifications assumees.
-
-## Phase 5 — Reels, collections, signalements, administration
-
-Toutes ces fonctionnalites sont additives. Sur une **base existante**, executer
-une fois, dans l'ordre : `migrations/013_reels_collections_reports_admin_activity.sql` puis
-`migrations/014_moderation_reasons.sql` (`mysql -u root -p social_network < fichier.sql`, rejouables sans danger). Une nouvelle installation via `database.sql` contient deja tout.
-Nouvelles dependances : `npm install` (ajoute `qrcode` et `jsqr`).
-
-- **Reels** (`/reels`) : flux vertical plein ecran (defilement magnetique, lecture
-  automatique du reel visible, double-tap = j'aime, appui long / survol = palette de
-  reactions, barre de progression glissable, son, clavier : fleches/j/k, espace, m, l, c).
-  J'aime, commentaires et **reponses** (avec reactions) comme les publications,
-  notifications, signalement, "ce reel ne m'interesse pas", partage, ajout a une collection.
-  Onglets **Pour vous** (recommandation) et **Amis**. Publication : video 3 min / 200 Mo max
-  (`REEL_MAX_FILE_BYTES` pour changer la limite).
-- **Recommandation intelligente** (`lib/reels.js`, sans service externe) : profil de gout
-  construit depuis le temps de visionnage, les boucles, les reactions, commentaires, ajouts
-  en collection, les "pas interesse" et les skips rapides, repartis sur hashtags et auteurs ;
-  score = interet + affinite auteur + proximite sociale + qualite + fraicheur + popularite +
-  duree preferee, penalite "deja vu", diversite d'auteurs et ~20 % d'exploration. Chaque reel
-  recommande indique pourquoi ("Parce que vous aimez #cuisine"...).
-- **Collections** (`/collections`) : dossiers imbriquables et playlists ordonnees (posts + reels),
-  couleurs, visibilite prive/amis/public, deplacement, reordonnancement, lecture continue des
-  reels d'une playlist. Ajout depuis le menu d'une publication ou d'un reel. Affichees sur le profil.
-- **Signalements** : comptes, publications, commentaires, reels, commentaires de reels, groupes
-  (menu "Signaler"), anonymes, un signalement par personne et par contenu.
-- **Administration** (`/admin`) : vue d'ensemble, signalements groupes par cible (ignorer / supprimer
-  le contenu / bannir, avec option de purge), utilisateurs (bannir, debannir, promouvoir,
-  supprimer), publications, commentaires, reels, groupes, serveurs, journal d'audit. Un compte
-  banni est deconnecte immediatement (API + sockets) et son contenu disparait des flux.
-  **Premier administrateur** : `ADMIN_EMAILS=moi@exemple.com` dans `.env`, ou
-  `npm run make-admin -- moi@exemple.com` (`--remove` pour retrograder).
-- **Motifs de moderation** : toute suppression de contenu, tout bannissement et toute suppression
-  de compte par un admin demande un motif (liste deroulante + « Autre » avec champ libre). L'auteur
-  recoit une notification « L'administration a supprime votre ... Motif : ... » (identite de l'admin
-  masquee). Un compte banni ou supprime est **deconnecte en direct** (evenement socket, avec controle
-  de secours toutes les 60 s) et le motif s'affiche sur la page de connexion, puis a chaque tentative.
-- **Mot de passe** : barre de force animee en temps reel (inscription, reinitialisation,
-  changement de mot de passe).
-- **Journal d'activite** (`/activity`) : publications, reactions, commentaires, invitations
-  envoyees/acceptees/refusees, reels, groupes, blocages, connexions... avec filtres.
-- **QR code** : "QR code du profil" (telechargeable en PNG, copiable, partageable) et scanner
-  dans la page Amis (camera ou image importee). La camera exige HTTPS (ou localhost).
-- **Langues** : les nouveaux textes sont traduits en anglais, arabe et espagnol ; les autres
-  langues retombent automatiquement sur le francais pour ces textes.
-
-## Phase 6 — Alertes de connexion, Premium (PayPal), revision des bannissements
-
-Sur une base existante, executer en plus (apres 013 et 014) :
-`mysql -u root -p social_network < migrations/015_login_alerts_premium_appeals.sql` (rejouable).
-
-- **Alertes de connexion** : chaque appareil est identifie par un cookie long (`nx_device`). Une
-  connexion depuis un **nouvel appareil** (alors que le compte en connaissait deja un) cree une
-  notification (+ push) et envoie un email avec l'appareil, la **localisation approximative** et l'IP.
-  Localisation : en-tetes CDN (`x-vercel-ip-city`, `cf-ipcountry`...) sinon service ipwho.is ;
-  en local, « Reseau local ». Page `/devices` : liste des appareils, « Oublier ». Derriere un proxy,
-  transmettre `X-Forwarded-For`. Le tout apres la reponse de connexion : aucun ralentissement.
-- **Premium** (`/premium`), paiement **PayPal** : badge verifie (publications, commentaires, reels,
-  profil), **visiteurs du profil** (`/visitors`, visites enregistrees pour tous, detail reserve aux
-  premium), **boost** de publications publiques (menu de la publication : priorite dans les fils +
-  mention « Mis en avant »). Prix, duree, devise PayPal, taux, duree et nombre de boosts sont
-  **modifiables par l'admin** (Administration > Premium). Defaut : 49 MAD pour 30 jours.
-  PayPal n'accepte pas le dirham : le prix affiche reste en MAD, PayPal facture la conversion
-  (devise + taux reglables, defaut 1 MAD = 0,10 USD). Le montant est toujours fixe cote serveur
-  et verifie a la capture. Configurer `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET`, `PAYPAL_MODE`
-  (`sandbox` pour tester, `live` en production). `PAYPAL_MODE=mock` simule PayPal en local
-  (refuse en production). L'admin peut offrir/retirer Premium et voir paiements et revenus.
-- **Revision d'un bannissement** : sur la page de connexion, un compte banni voit le motif et un lien
-  « Demander une revision » (`/appeal`, publique : email + mot de passe + message). L'admin traite
-  (Administration > Revisions) : **accepter** (compte retabli) ou **refuser** (motif obligatoire) ;
-  la decision est envoyee **par email**. Une seule demande en attente, nouvelle demande possible
-  7 jours apres un refus. Un deban depuis la liste des utilisateurs cloture aussi la demande.
-
-## Phase 7 — Achats Premium, badge partout, historique des bannissements
-
-Sur une base existante, executer en plus : `migrations/016_premium_notifications_ban_records.sql`
-(rejouable ; ordre : 013, 014, 015, 016).
-
-- **Achat Premium** : l'acheteur recoit une notification de felicitations (+ email + message sur la page),
-  tous les administrateurs sont notifies en temps reel. Administration > Premium : statistiques de
-  vente (aujourd'hui, 7/30 jours, revenus, acheteurs, rachats, panier moyen, taux de conversion,
-  graphique 14 jours) et **liste des acheteurs** (nombre d'achats, total, dernier achat, actif/expire).
-- **Les administrateurs ont Premium par defaut** (badge, visiteurs, boost), sans achat.
-- Une fois Premium (achat ou admin), l'entree « Premium » disparait du menu lateral.
-- **Son des reels** : active par defaut quand l'utilisateur arrive par un clic ; si le navigateur
-  bloque l'autoplay avec son, une pastille « Appuyez pour activer le son » apparait (un appui suffit).
-  Le choix muet/son est memorise.
-- **Badge verifie partout** a cote du nom : publications, commentaires, partages, reels, stories,
-  recherche, amis/suggestions, messages, groupes, serveurs, mentions, listes de reactions/vues,
-  visiteurs, profil et menu utilisateur.
-- **Revision d'un bannissement** : l'admin voit le motif d'origine, la date, l'administrateur, le
-  **contenu a l'origine du bannissement** (publication, reel, commentaire... avec extrait conserve
-  meme si supprime, et lien s'il existe) ou, a defaut, les signalements lies au compte.
-
-## Limitations connues
-
-- **Feed personnalise** : le score est recalcule a chaque requete plutot
-  que mis en cache (voir "Notes de performance" plus haut) ; adapte a un
-  reseau de taille moyenne, un cache serait recommande a tres grande
-  echelle.
-- **Notifications** : la categorie "Messages" n'a pas ete recreee dans le
-  centre de notifications, les messages ayant deja leur propre badge non-lu
-  dedie (voir Phase 1).
-- **Brouillons** : la localisation n'est pas encore persistee dans un
-  brouillon (uniquement au moment de la publication reelle).
-- **Assistant IA** : teste uniquement avec une cle invalide (gestion
-  d'erreur confirmee) faute de cle Anthropic valide disponible pendant le
-  developpement ; a tester avec une vraie cle lors du deploiement.
-- **Groupes** : pas de transfert de propriete (le proprietaire ne peut pas
-  quitter son groupe, seulement le supprimer) ; le blocage entre
-  utilisateurs ne s'applique pas au contenu partage d'un groupe commun.
-
-## Verification finale
-
-Conformement a la demande, une derniere verification globale a ete
-effectuee apres la Phase 4, serveur reellement demarre (`node server.js`)
-et requetes HTTP reelles envoyees (`curl`) :
-
-- **Bug trouve et corrige** : le middleware d'authentification
-  (`middleware.js`) interceptait `/sw.js`, `/manifest.json` et les icones
-  PNG et redirigeait les requetes non authentifiees vers `/login` (ces
-  fichiers n'etaient pas exclus du matcher). Consequence concrete : le
-  Service Worker, enregistre des le chargement de l'app (y compris sur la
-  page de connexion), recevait une reponse HTML de redirection au lieu du
-  fichier JavaScript attendu, et echouait silencieusement. Corrige en
-  excluant ces fichiers publics du matcher. Verifie apres correction :
-  `/sw.js`, `/manifest.json` et `/icon.png` repondent `200` avec le bon
-  type MIME sans authentification, tandis que les pages protegees
-  continuent de rediriger correctement (`307`) et que toutes les nouvelles
-  routes API (`/api/groups`, `/api/explore`, `/api/stats`, `/api/search`,
-  `/api/status`, `/api/posts/saved`, `/api/drafts`, `/api/ai/assist`,
-  `/api/push/vapid-public-key`) continuent de repondre `401` sans session.
-- Schema complet (`database.sql`) importe tel quel (DROP/CREATE DATABASE
-  inclus, comme le ferait un utilisateur reel) : 33 tables creees sans
-  erreur.
-- Parcours de mise a jour complet simule : base reconstituee dans son etat
-  *avant toute extension*, puis les 3 migrations incrementales
-  (`002` → `003` → `004`) appliquees dans l'ordre : resultat identique
-  (33 tables) a une installation neuve.
-- Aucun `console.log` de debogage ni marqueur `TODO`/`FIXME` laisse dans
-  le code ajoute.
-
-
-
-- Node.js 18 ou superieur
-- MySQL 8 ou superieur (ou MariaDB compatible)
+---
 
 ## Installation
 
-1. Installer les dependances :
-
-   ```bash
-   npm install
-   ```
-
-2. Creer la base de donnees en important le schema complet :
-
-   ```bash
-   mysql -u root -p < database.sql
-   ```
-
-   Le script cree la base `social_network`, ses 23 tables (utilisateurs,
-   medias en BLOB, amis, blocages, publications, commentaires, reactions, hashtags,
-   mentions, stories, conversations, messages, notifications) ainsi que les
-   index de performance.
-
-3. Copier le fichier d'environnement et renseigner vos identifiants MySQL :
-
-   ```bash
-   cp .env.example .env.local
-   ```
-
-   Variables a configurer dans `.env.local` :
-
-   | Variable | Description |
-   |---|---|
-   | `DB_HOST` | Hote MySQL (ex: `localhost` ou `127.0.0.1`) |
-   | `DB_PORT` | Port MySQL (par defaut `3306`) |
-   | `DB_USER` | Utilisateur MySQL |
-   | `DB_PASSWORD` | Mot de passe MySQL |
-   | `DB_NAME` | Nom de la base (`social_network`) |
-   | `JWT_SECRET` | Cle secrete utilisee pour signer les tokens JWT, a changer en production |
-   | `JWT_EXPIRES_IN` | Duree de validite du token (ex: `7d`) |
-   | `UPLOAD_DIR` | Dossier de stockage des fichiers uploades |
-   | `MAX_UPLOAD_SIZE` | Taille maximale d'un fichier uploade en octets |
-   | `NEXT_PUBLIC_APP_URL` | URL publique de l'application |
-   | `PORT` | Port du serveur Node |
-
-4. Lancer le serveur de developpement :
-
-   ```bash
-   npm run dev
-   ```
-
-   L'application est disponible sur [http://localhost:3000](http://localhost:3000).
-
-## Configuration : captcha, emails et appels
-
-Variables a definir dans `.env` (voir `.env.example`) :
-
-| Variable | Role |
-| --- | --- |
-| `NEXT_PUBLIC_RECAPTCHA_SITE_KEY` | Cle publique reCAPTCHA v2 (affichee au navigateur) |
-| `RECAPTCHA_SECRET_KEY` | Cle secrete reCAPTCHA (serveur uniquement). Vide = captcha desactive |
-| `MAIL_API_URL` | API d'envoi d'emails (requete GET `?email=&subject=&text=&html=`) |
-| `ICE_SERVERS` | Optionnel : serveurs STUN/TURN au format JSON pour les appels |
-| `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` | Cles Web Push. Vide = notifications push desactivees proprement |
-| `VAPID_CONTACT_EMAIL` | Email de contact transmis avec les cles VAPID (requis par la norme Web Push) |
-| `AI_API_KEY` | Cle API Anthropic. Vide = assistant IA desactive proprement |
-| `AI_MODEL` | Modele Anthropic utilise par l'assistant IA (verifier la disponibilite sur docs.claude.com) |
-
-- **reCAPTCHA** : les cles doivent etre de type **v2 « Je ne suis pas un
-  robot »** et le domaine utilise (`localhost` en developpement) doit figurer
-  dans la console reCAPTCHA. `NEXT_PUBLIC_*` est integre au build : relancer
-  `npm run build` apres modification.
-- **Mot de passe oublie** : sur une base existante, executer
-  `migrations/001_password_reset.sql` (cree la table `passwordReset` sans
-  toucher aux donnees ; `database.sql` commence par `DROP DATABASE`).
-- **Statut personnalise / enregistres / epingles / brouillons** : sur une
-  base existante (installee avant cette mise a jour), executer
-  `migrations/002_phase1_features.sql` (cree les tables `presenceStatus`,
-  `savedPost`, `pinnedPost`, `postDraft`, `draftMedia` sans toucher aux
-  donnees existantes ; script idempotent, peut etre relance sans risque).
-  Pour une toute nouvelle installation, `database.sql` contient deja ces
-  tables, aucune action supplementaire n'est necessaire.
-- **Notifications push** : sur une base existante, executer
-  `migrations/003_phase3_push.sql` (cree la table `pushSubscription`,
-  idempotent). Puis generer une paire de cles VAPID :
-  `npx web-push generate-vapid-keys`, et renseigner `VAPID_PUBLIC_KEY`,
-  `VAPID_PRIVATE_KEY` et `VAPID_CONTACT_EMAIL` dans `.env`. Sans ces
-  variables, la fonctionnalite reste desactivee proprement (aucune
-  erreur), le reste de l'application n'est pas affecte.
-- **Assistant IA** : renseigner `AI_API_KEY` (cle API Anthropic) dans
-  `.env` pour activer le bouton "Assistant IA" du composeur. Sans cette
-  variable, le bouton reste visible mais indique clairement que
-  l'assistant n'est pas configure plutot que d'utiliser une fausse cle.
-- **Groupes et geolocalisation** : sur une base existante, executer
-  `migrations/004_phase4_groups_location.sql` (cree les tables
-  `communityGroup`/`communityGroupMember` et ajoute les colonnes
-  `post.groupId`/`post.location`, idempotent — verifie via
-  information_schema avant chaque modification).
-- **Appels** : le navigateur n'autorise micro / camera / partage d'ecran qu'en
-  **HTTPS** (ou sur `localhost`). Sans serveur TURN, certains reseaux
-  (4G, pare-feu d'entreprise) peuvent empecher la connexion pair-a-pair :
-  renseigner `ICE_SERVERS` avec un serveur TURN (ex. coturn) en production.
-  Le partage d'ecran n'est pas propose sur les navigateurs mobiles qui ne le
-  supportent pas.
-
-## Lancement en production
-
 ```bash
-npm run build
-npm start
+# 1. Cloner le dépôt
+git clone https://github.com/oPahae/Vynora.git
+cd Vynora
+
+# 2. Installer les dépendances
+npm install
+
+# 3. Configurer l'environnement
+cp .env.example .env        # ou créez .env à partir de la section ci-dessous
+
+# 4. Créer la base de données (voir l'avertissement ci-dessous)
+mysql -u root -p < database.sql
+
+# 5. Lancer en développement
+npm run dev
 ```
 
-Le projet utilise un serveur Node personnalise (`server.js`) qui combine
-Next.js et Socket.IO afin que tout le temps reel (messagerie, notifications,
-frappe en direct, presence en ligne) fonctionne nativement, sans service
-externe additionnel.
+L'application est disponible sur **http://localhost:3000** (ou le `PORT` défini).
+
+Créer ensuite un compte administrateur :
+
+```bash
+npm run make-admin -- admin@exemple.com --create "MotDePasseSolide123!"
+```
+
+---
+
+## Configuration (variables d'environnement)
+
+Créez un fichier `.env` à la racine (déjà ignoré par Git). Exemple de `.env.example` :
+
+```env
+# --- Base de données ---
+DB_HOST=localhost
+DB_PORT=3306
+DB_USER=root
+DB_PASSWORD=
+DB_NAME=social_network
+
+# --- Authentification ---
+JWT_SECRET=remplacez-par-une-longue-chaine-aleatoire
+JWT_EXPIRES_IN=7d
+
+# --- Application ---
+NEXT_PUBLIC_APP_URL=http://localhost:3000
+PORT=3000
+MAX_UPLOAD_SIZE=            # en octets ; vide = aucune limite
+
+# --- reCAPTCHA v2 (optionnel) ---
+NEXT_PUBLIC_RECAPTCHA_SITE_KEY=
+RECAPTCHA_SECRET_KEY=       # vide = vérification serveur désactivée
+
+# --- E-mails (codes de vérification / réinitialisation) ---
+MAIL_API_URL=               # vide = API par défaut du projet
+
+# --- Appels audio/vidéo (optionnel) ---
+ICE_SERVERS=                # tableau JSON RTCIceServer (STUN/TURN)
+
+# --- Notifications push (optionnel) ---
+# Générer : npx web-push generate-vapid-keys
+VAPID_PUBLIC_KEY=
+VAPID_PRIVATE_KEY=
+VAPID_CONTACT_EMAIL=mailto:contact@exemple.com
+
+# --- Administration ---
+ADMIN_EMAILS=               # e-mails (séparés par des virgules) promus admin
+
+# --- Premium / PayPal ---
+PAYPAL_CLIENT_ID=
+PAYPAL_CLIENT_SECRET=
+PAYPAL_MODE=sandbox         # sandbox | live | mock (mock : hors production uniquement)
+
+# --- Reels (optionnel) ---
+REEL_MAX_FILE_BYTES=        # défaut : 209715200 (200 Mo)
+```
+
+| Variable | Obligatoire | Description |
+| --- | :---: | --- |
+| `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_NAME` | ✅ | Connexion MySQL |
+| `JWT_SECRET` | ✅ | Secret de signature des JWT (longue chaîne aléatoire) |
+| `JWT_EXPIRES_IN` | ✅ | Durée de validité de la session |
+| `NEXT_PUBLIC_APP_URL` | ✅ | URL publique de l'application |
+| `PORT` | — | Port d'écoute (3000 par défaut) |
+| `MAX_UPLOAD_SIZE` | — | Plafond d'upload en octets (aucune limite si vide) |
+| `NEXT_PUBLIC_RECAPTCHA_SITE_KEY` / `RECAPTCHA_SECRET_KEY` | — | reCAPTCHA v2 ; clé secrète vide = désactivé |
+| `MAIL_API_URL` | — | API HTTP d'envoi d'e-mails |
+| `ICE_SERVERS` | — | Serveurs STUN/TURN ; STUN Google par défaut |
+| `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` / `VAPID_CONTACT_EMAIL` | — | Web Push ; vides = push désactivé sans erreur |
+| `ADMIN_EMAILS` | — | Promotion automatique en administrateur |
+| `PAYPAL_CLIENT_ID` / `PAYPAL_CLIENT_SECRET` / `PAYPAL_MODE` | — | Paiement Premium |
+| `REEL_MAX_FILE_BYTES` | — | Taille maximale d'un reel |
+
+> ⚠️ **Ne commitez jamais `.env`.** Il est déjà couvert par `.gitignore` (seul `.env.example` est autorisé).
+
+---
+
+## Base de données
+
+Le schéma complet est dans [`database.sql`](./database.sql) (utf8mb4, InnoDB, clés étrangères avec suppression en cascade). Il contient une soixantaine de tables, regroupées ainsi :
+
+| Domaine | Tables principales |
+| --- | --- |
+| Utilisateurs et sécurité | `user`, `block`, `loginDevice`, `emailVerification`, `passwordReset`, `deletedAccount` |
+| Contenu | `post`, `postMedia`, `postView`, `postVisibilityUser`, `hashtag`, `postHashtag`, `comment`, `mention`, `reaction`, `postDraft`, `draftMedia`, `savedPost`, `pinnedPost`, `collection`, `collectionItem` |
+| Reels et stories | `reel`, `reelReaction`, `reelComment`, `reelCommentReaction`, `reelView`, `reelHidden`, `reelHashtag`, `status`, `statusView`, `statusReaction` |
+| Social | `friend`, `communityGroup`, `communityGroupMember`, `profileVisit`, `searchHistory`, `presenceStatus` |
+| Messagerie | `conversation`, `conversationParticipant`, `message`, `messageSeen`, `messageDeletion`, `messageFavorite` |
+| Serveurs | `guild`, `guildMember`, `guildRole`, `guildMemberRole`, `guildCategory`, `guildChannel`, `guildChannelRole`, `guildChannelMember`, `guildMessage`, `guildInvite` |
+| Notifications | `notification`, `pushSubscription` |
+| Premium | `payment`, `postBoost`, `appSetting` |
+| Modération | `report`, `banRecord`, `banAppeal`, `activityLog`, `adminAudit` |
+| Médias | `media` (`LONGBLOB`) |
+
+> ⚠️ **Attention :** `database.sql` commence par `DROP DATABASE social_network;` puis recrée la base. **Ne l'exécutez jamais sur une base contenant des données à conserver.** Supprimez ou commentez cette ligne pour une installation sur un serveur existant.
+
+---
+
+## Scripts disponibles
+
+| Commande | Description |
+| --- | --- |
+| `npm run dev` | Démarre le serveur de développement (`node server.js`, Next.js + Socket.IO) |
+| `npm run build` | Compile l'application Next.js pour la production |
+| `npm start` | Démarre en production (`NODE_ENV=production node server.js`) |
+| `npm run lint` | Analyse le code avec ESLint |
+| `npm run make-admin -- <email>` | Promeut un compte en administrateur |
+| `npm run make-admin -- <email> --remove` | Retire les droits d'administrateur |
+| `npm run make-admin -- <email> --create "<mot de passe>"` | Crée un compte administrateur déjà vérifié |
+
+---
+
+## Administration
+
+Deux moyens d'obtenir un compte administrateur :
+
+1. La variable `ADMIN_EMAILS` : les adresses listées sont promues à leur prochaine requête.
+2. Le script `npm run make-admin` (voir ci-dessus).
+
+Le panneau `/admin` regroupe :
+
+| Onglet | Rôle |
+| --- | --- |
+| Vue d'ensemble | Statistiques globales |
+| Signalements | Traitement des signalements |
+| Révisions | Demandes de révision de bannissement |
+| Utilisateurs | Recherche, bannissement, gestion des comptes |
+| Premium | Acheteurs, paiements, réglages (prix, devise, taux, durée, boosts) |
+| Publications, Commentaires, Reels, Com. reels | Modération du contenu |
+| Groupes, Serveurs | Modération des communautés |
+| Journal d'audit | Historique des actions d'administration |
+
+Toute sanction exige un **motif** (non-respect des règles, spam, harcèlement, discours haineux, violence, nudité, fausses informations, arnaque, usurpation d'identité, ou motif libre). L'utilisateur concerné est notifié.
+
+---
+
+## Aperçu de l'API
+
+Toutes les routes sont sous `/api` (Next.js API Routes) et protégées par le cookie JWT, sauf l'authentification et les pages publiques.
+
+| Domaine | Exemples de routes |
+| --- | --- |
+| Auth | `POST /api/auth/login`, `/logout`, `/register/request-code`, `/register/confirm`, `/forgot-password`, `/reset-password`, `/find-account/*`, `GET /api/auth/me` |
+| Utilisateurs | `/api/users/me`, `/users/[id]`, `/users/search`, `/users/me/{avatar,cover,password,privacy,theme,language,music}`, `/users/me/email-change/*`, `/users/me/account/{deactivate,delete}` |
+| Publications | `/api/posts`, `/posts/[id]`, `/posts/[id]/{react,comments,share,save,pin,boost,view,viewers,reactions,shares}`, `/posts/saved`, `/api/feed` |
+| Commentaires | `/api/comments/[id]`, `/comments/[id]/{react,replies}` |
+| Reels | `/api/reels`, `/reels/[id]/{comments,react,view,hide}`, `/api/reel-comments/[id]` |
+| Stories | `/api/stories`, `/stories/[id]/{react,view,viewers}` |
+| Messagerie | `/api/conversations`, `/conversations/[id]/{messages,read}`, `/api/messages/[id]/{forward,favorite}`, `/api/messages/favorites` |
+| Amis | `/api/friends`, `/friends/[userId]/{request,accept,reject,cancel,remove}`, `/friends/{requests,sent,suggestions}` |
+| Groupes | `/api/groups`, `/groups/[id]/{members,join,leave,invite,posts,requests,avatar,cover}` |
+| Serveurs | `/api/guilds`, `/guilds/join`, `/guilds/[id]/{channels,categories,roles,members,invite,leave}` |
+| Collections | `/api/collections`, `/collections/[id]/items` |
+| Recherche et découverte | `/api/search`, `/search/history`, `/api/explore`, `/hashtags/[tag]/posts`, `/api/mentions/search` |
+| Notifications et push | `/api/notifications`, `/notifications/readAll`, `/push/{subscribe,unsubscribe,vapid-public-key}` |
+| Premium | `/api/premium`, `/premium/order`, `/premium/capture` |
+| Modération | `/api/reports`, `/api/appeals`, `/api/block` |
+| Divers | `/api/media/[id]`, `/api/ai/assist`, `/api/calls/ice-servers`, `/api/stats`, `/api/visitors`, `/api/devices`, `/api/status`, `/api/drafts` |
+| Administration | `/api/admin/{stats,users,reports,appeals,content,payments,premium-buyers,audit,settings}` |
+
+Format de réponse : JSON avec `{ success: boolean, message?: string, ... }`.
+
+---
+
+## Temps réel (Socket.IO)
+
+Le serveur Socket.IO est exposé sur le chemin `/api/socket` et authentifie chaque connexion via le cookie `authToken` (les comptes bannis ou supprimés sont refusés).
+
+| Module | Événements |
+| --- | --- |
+| Présence et conversations | `presence:list`, `presence:update`, `conversation:join`, `conversation:leave` |
+| Appels 1-à-1 (`server/callSignaling.js`) | client → serveur : `call:invite`, `call:accept`, `call:decline`, `call:end`, `call:signal`, `call:state` ; serveur → client : `call:incoming`, `call:accepted`, `call:handled`, `call:ended`, `call:signal`, `call:peer-state` |
+| Vocal des serveurs (`server/guildVoiceSignaling.js`) | `voice:join`, `voice:list`, `voice:leave`, `voice:signal`, `voice:state`, `voice:mute-user` |
+
+---
+
+## Sécurité
+
+- **Mots de passe** hachés avec `bcryptjs`
+- **Sessions** par JWT signé (`jose`), vérifiées par un `middleware.js` qui redirige les visiteurs non connectés vers `/login`
+- **Vérification d'e-mail** à l'inscription et pour le changement d'adresse
+- **reCAPTCHA v2** sur les formulaires d'authentification
+- **Limiteur de débit** en mémoire (fenêtre glissante) sur les routes sensibles
+- **Paiements** : montants décidés côté serveur uniquement, jamais par le navigateur
+- **Alertes de connexion** sur nouvel appareil, avec cookie d'appareil `HttpOnly` / `SameSite=Lax` (`Secure` en production)
+- **Contrôle d'accès** sur chaque publication (visibilité, blocages, amis) et sur chaque salon (permissions par rôle)
+- **Coupure immédiate** des sockets d'un utilisateur banni ou supprimé
+- Requêtes SQL **paramétrées**
+
+Voir aussi la section [Déploiement en production](#déploiement-en-production) pour les points de durcissement.
+
+---
+
+## Internationalisation
+
+8 langues disponibles, sélectionnables dans les paramètres : **Français** (langue par défaut), **English**, **العربية** (RTL), **Español**, **Italiano**, **日本語**, **中文**, **Русский**.
+
+- Les fichiers de traduction sont dans `lib/i18n/locales/`
+- La langue est mémorisée dans le cookie `lang` et sur le compte utilisateur
+- La direction du texte (LTR / RTL) est appliquée automatiquement
+
+Pour ajouter une langue : créer `lib/i18n/locales/<code>.js`, l'enregistrer dans `lib/i18n/locales/index.js` et l'ajouter à la liste `LOCALES` de `lib/i18n/config.js`.
+
+---
 
 ## Structure du projet
 
 ```
-social-network/
-  components/        Composants React reutilisables (camelCase), organises par domaine
-    auth/            Connexion, inscription, mot de passe oublie, reCAPTCHA
-    calls/           Interface des appels audio/video (plein ecran, reduit, boutons)
-    comments/        Commentaires et reponses
-    friends/         Amis et cartes utilisateur
-    layout/          Navbar, navigation mobile, mise en page
-    messages/        Messagerie
-    notifications/   Notifications
-    posts/           Publications, reactions, partages, mentions
-    profile/         Profil utilisateur
-    settings/        Parametres du compte
-    shared/          Composants generiques (avatar, listes infinies...)
-    stories/         Stories
-  lib/               Logique partagee cote serveur et client
-    auth.js          JWT, hachage des mots de passe, cookies
-    db.js            Pool de connexions MySQL
-    posts.js         Visibilite, agregation, hashtags, mentions, partages
-    comments.js      Agregation des commentaires
-    conversations.js Messagerie
-    stories.js       Stories
-    notifications.js Creation, diffusion temps reel et categorisation des
-                     notifications
-    presenceStatus.js Statut personnalise (distinct de la presence en ligne
-                     et des stories)
-    statusConstants.js Constantes du statut personnalise (partagees
-                     client/serveur, sans dependance a la base de donnees)
-    savedPosts.js    Publications enregistrees
-    pinnedPosts.js   Publications epinglees sur le profil
-    drafts.js        Brouillons de publication
-    feedScoring.js   Scoring deterministe du feed personnalise
-    search.js        Recherche globale et historique de recherche
-    push.js          Envoi de notifications push (Web Push, serveur)
-    pushClient.js     Enregistrement du Service Worker et abonnement push (client)
-    aiAssistant.js   Assistant IA du composeur (appel API Anthropic, serveur)
-    groups.js        Groupes/communautes : creation, adhesion, roles, moderation
-    explore.js       Hashtags tendance, publications populaires/recentes (page Explorer)
-    stats.js         Statistiques personnelles de l'utilisateur
-    upload.js        Upload de fichiers (formidable)
-    callContext.jsx  Etat global des appels WebRTC (micro, camera, partage d'ecran)
-    mailer.js        Envoi d'emails via l'API HTTP
-    passwordReset.js Codes de reinitialisation du mot de passe
-    recaptcha.js     Verification serveur des jetons reCAPTCHA
-  pages/
-    api/             Toutes les routes API REST
-    ...              Pages Next.js (Pages Router)
-  public/uploads/    Fichiers uploades par les utilisateurs
-  public/sw.js       Service Worker (reception des notifications push)
-  public/icon*.png, manifest.json  Icones utilisees par les notifications
-                     push et le manifeste web
-  styles/            Feuille de style Tailwind globale (inclut le mode sombre)
-  database.sql       Schema MySQL complet du projet
-  middleware.js      Protection des routes cote edge
-  migrations/        Scripts SQL a appliquer sur une base existante
-  server/            Signalisation des appels (Socket.IO), utilisee par server.js
-  server.js          Serveur Node personnalise (Next.js + Socket.IO)
+Vynora/
+├── components/          # Composants React par domaine
+│   ├── admin/ auth/ calls/ collections/ comments/ drafts/ friends/
+│   ├── groups/ layout/ messages/ notifications/ posts/ premium/
+│   ├── profile/ reels/ reports/ search/ servers/ settings/
+│   ├── shared/ stats/ status/ stories/
+├── lib/                 # Logique métier (accès BDD, auth, premium, feed, i18n…)
+│   └── i18n/            # Moteur de traduction + 8 langues
+├── pages/               # Pages Next.js (Pages Router)
+│   └── api/             # Routes d'API REST
+├── server/              # Signalisation WebRTC (appels, vocal des serveurs)
+├── scripts/make-admin.js
+├── public/              # manifest.json, service worker, icônes
+├── styles/globals.css
+├── database.sql         # Schéma MySQL complet
+├── middleware.js        # Protection des routes
+├── server.js            # Serveur HTTP + Next.js + Socket.IO
+├── tailwind.config.js
+└── package.json
 ```
 
-## Notes de performance
+---
 
-- Les agregats (reactions, commentaires, vues) sont calcules par requetes
-  groupees en lot plutot que requete par requete, quel que soit le nombre
-  d'elements affiches sur une page.
-- Index composites dedies aux jointures et filtres les plus frequents.
-- Pagination infinie (chargement automatique au scroll) sur le fil
-  d'actualite, les commentaires et les notifications.
-- Composants de liste memoises (`React.memo`) avec callbacks stabilises.
-- Images optimisees via `next/image` (lazy loading automatique).
+## Déploiement en production
 
-## Etat d'avancement
+```bash
+npm ci
+npm run build
+npm start
+```
 
-- [x] Phase 1 — Initialisation, base de donnees, authentification JWT
-- [x] Phase 2 — Profils, amis, blocage
-- [x] Phase 3 — Publications, commentaires, reactions, visibilite
-- [x] Phase 4 — Partages, tags, fil d'actualite
-- [x] Phase 5 — Stories
-- [x] Phase 6 — Messagerie Socket.IO
-- [x] Phase 7 — Notifications temps reel
-- [x] Phase 8 — Parametres
-- [x] Phase 9 — Optimisation, animations, responsive
-- [x] Phase 10 — Verification complete et documentation finale
+Checklist recommandée :
 
-## Langues (i18n)
+- [ ] Servir derrière **HTTPS** (reverse proxy Nginx / Caddy) avec support **WebSocket** pour `/api/socket`
+- [ ] Définir un `JWT_SECRET` long et aléatoire, et un `NEXT_PUBLIC_APP_URL` en `https://`
+- [ ] Restreindre l'origine CORS de Socket.IO (actuellement `*` dans `server.js`) à votre domaine
+- [ ] Configurer un **serveur TURN** via `ICE_SERVERS` : sans lui, les appels peuvent échouer sur réseaux mobiles ou derrière des pare-feu stricts
+- [ ] Passer `PAYPAL_MODE=live` avec les identifiants de production
+- [ ] Générer et renseigner les clés **VAPID** pour les notifications push
+- [ ] Activer **reCAPTCHA** (`RECAPTCHA_SECRET_KEY`)
+- [ ] Prévoir des **sauvegardes MySQL** régulières : les médias étant en base, la taille des sauvegardes augmente rapidement
+- [ ] Le limiteur de débit est **en mémoire** : adapté à une seule instance ; le remplacer par Redis pour un déploiement multi-instances (le même constat vaut pour l'état de présence Socket.IO)
+- [ ] Surveiller `max_allowed_packet` MySQL et fixer `MAX_UPLOAD_SIZE` en cohérence
 
-L'application est disponible en **arabe (RTL)**, anglais, francais, espagnol, italien, japonais, chinois et russe.
-La langue se change dans **Parametres > Langue** (et via le selecteur en haut des pages de connexion/inscription).
+---
 
-- Migration a executer : `mysql -u root -p social_network < migrations/012_user_language.sql`
-- Les textes francais d'origine servent de cles : `t("Texte francais")` (`lib/i18n/runtime.jsx`).
-- Dictionnaires : `lib/i18n/locales/{en,ar,es,it,ja,zh,ru}.js` (cle absente = texte francais).
-- Cote serveur : les e-mails et notifications push utilisent la langue enregistree sur le compte ; les messages d'API sont traduits cote client.
-- RTL : `dir="rtl"` est applique automatiquement a `<html>` pour l'arabe (classes Tailwind logiques `ms-/me-/ps-/pe-/start-/end-`).
-- Pour ajouter un texte : l'ecrire en francais dans `t("...")` puis ajouter sa traduction dans chaque dictionnaire.
+## Dépannage
+
+| Problème | Piste de résolution |
+| --- | --- |
+| Erreur de connexion MySQL au démarrage | Vérifier `DB_*` dans `.env` et que la base existe |
+| Upload de vidéo qui échoue | Augmenter `max_allowed_packet` côté MySQL, vérifier `MAX_UPLOAD_SIZE` |
+| Pas de notifications push | Vérifier les clés VAPID, que le site est en HTTPS et que le service worker est enregistré |
+| Appels qui ne se connectent pas | Ajouter un serveur TURN dans `ICE_SERVERS` |
+| E-mails non reçus | Vérifier `MAIL_API_URL` et les dossiers spam |
+| Paiement PayPal indisponible | Vérifier `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET` et `PAYPAL_MODE` |
+| Images qui ne s'affichent pas | Les médias exigent le cookie de session : ne pas les charger depuis un autre domaine |
+
+---
+
+## Contribuer
+
+Les contributions sont les bienvenues.
+
+1. Forkez le dépôt
+2. Créez une branche : `git checkout -b feature/ma-fonctionnalite`
+3. Committez vos changements : `git commit -m "feat: ma fonctionnalité"`
+4. Poussez : `git push origin feature/ma-fonctionnalite`
+5. Ouvrez une Pull Request
+
+Merci de lancer `npm run lint` avant de soumettre, et de fournir les chaînes de traduction pour les nouveaux textes d'interface.
+
+---
+
+## Licence
+
+Aucune licence n'est actuellement définie pour ce projet. Ajoutez un fichier `LICENSE` (par exemple MIT) pour préciser les conditions d'utilisation.
+
+---
+
+<div align="center">
+
+Développé par [oPahae](https://github.com/oPahae)
+
+</div>
