@@ -14,7 +14,8 @@ const TYPE_LABELS = {
   get image() { return t("Photo"); },
   get video() { return t("Video"); },
   get audio() { return t("Message audio"); },
-  get file() { return t("Fichier"); }
+  get file() { return t("Fichier"); },
+  get reel() { return t("Reel"); }
 };
 
 function ConversationListItem({ conversation, status, onArchive, onDelete }) {

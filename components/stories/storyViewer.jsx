@@ -2,13 +2,14 @@ import VerifiedBadge from '@/components/shared/verifiedBadge';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, ChevronLeft, ChevronRight, Trash2, Eye } from 'lucide-react';
+import { X, ChevronLeft, ChevronRight, Trash2, Eye, Send, Loader2 } from 'lucide-react';
 import Avatar from '@/components/shared/avatar';
 import ReactionButton from '@/components/posts/reactionButton';
 import PeopleListModal from '@/components/posts/peopleListModal';
 import REACTIONS from '@/components/shared/reactionTypes';
 import { useAuth } from '@/lib/authContext';
 import { useConfirm } from '@/lib/confirmContext';
+import { useToast } from '@/lib/toastContext';
 
 import { t } from '@/lib/i18n/runtime';
 const TEXT_DURATION_MS = 5000;
@@ -16,6 +17,9 @@ const TEXT_DURATION_MS = 5000;
 export default function StoryViewer({ groups, initialGroupIndex, onClose, onDeleted }) {
   const { user } = useAuth();
   const confirm = useConfirm();
+  const { showToast } = useToast();
+  const [replyText, setReplyText] = useState('');
+  const [isReplying, setIsReplying] = useState(false);
   const [groupIndex, setGroupIndex] = useState(initialGroupIndex);
   const [storyIndex, setStoryIndex] = useState(0);
   const [progress, setProgress] = useState(0);
@@ -124,6 +128,47 @@ export default function StoryViewer({ groups, initialGroupIndex, onClose, onDele
   function handlePressEnd() {
     setIsPaused(false);
     startRef.current = performance.now();
+  }
+
+  // Pause pendant la saisie d'une reponse (sans cumuler les pauses).
+  function pauseForInput() {
+    if (!isPausedRef.current) handlePressStart();
+  }
+
+  function resumeAfterInput() {
+    if (isPausedRef.current) handlePressEnd();
+  }
+
+  // Les brouillons de reponse ne suivent pas d'une story a l'autre.
+  useEffect(() => {
+    setReplyText('');
+  }, [story?.id]);
+
+  async function handleReply(event) {
+    event.preventDefault();
+    const content = replyText.trim();
+    if (!content || isReplying) return;
+    setIsReplying(true);
+    try {
+      const response = await fetch(`/api/stories/${story.id}/reply`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content })
+      });
+      const data = await response.json();
+      if (data.success) {
+        setReplyText('');
+        showToast({ title: t("Reponse envoyee en message prive"), type: 'success', playSound: false });
+        if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+        resumeAfterInput();
+      } else {
+        showToast({ title: t("Erreur"), message: data.message, type: 'error', playSound: false });
+      }
+    } catch (error) {
+      showToast({ title: t("Impossible de contacter le serveur"), type: 'error', playSound: false });
+    } finally {
+      setIsReplying(false);
+    }
   }
 
   async function handleDelete() {
@@ -246,14 +291,43 @@ export default function StoryViewer({ groups, initialGroupIndex, onClose, onDele
           </button>
         </div>
 
-        <div className="absolute bottom-0 start-0 end-0 p-4 flex items-center justify-between z-20">
-          <ReactionButton targetType="story" targetId={story.id} myReaction={localReaction} onChange={handleReactionChange} />
+        <div className="absolute bottom-0 start-0 end-0 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] z-20 bg-gradient-to-t from-black/60 to-transparent">
           {isOwner ? (
-            <button onClick={openViewers} className="flex items-center gap-1.5 text-white text-sm">
-              <Eye size={16} /> {story.viewsCount}
-            </button>
+            <div className="flex items-center justify-between">
+              <ReactionButton targetType="story" targetId={story.id} myReaction={localReaction} onChange={handleReactionChange} />
+              <button onClick={openViewers} className="flex items-center gap-1.5 text-white text-sm">
+                <Eye size={16} /> {story.viewsCount}
+              </button>
+            </div>
           ) : (
-            localTotalReactions > 0 && <span className="text-white text-sm">{t("{localTotalReactions} reactions", { localTotalReactions })}</span>
+            <form onSubmit={handleReply} className="flex items-center gap-2">
+              <input
+                type="text"
+                value={replyText}
+                maxLength={2000}
+                onChange={(event) => setReplyText(event.target.value)}
+                onFocus={pauseForInput}
+                onBlur={resumeAfterInput}
+                placeholder={t("Repondre a {name}...", { name: story.author.firstName })}
+                className="flex-1 min-w-0 h-11 rounded-full bg-black/35 border border-white/40 text-white placeholder:text-white/70 text-sm px-4 outline-none focus:border-white focus:bg-black/50"
+              />
+              {replyText.trim() ? (
+                <button
+                  type="submit"
+                  disabled={isReplying}
+                  onMouseDown={(event) => event.preventDefault()}
+                  className="w-11 h-11 rounded-full bg-brand-500 text-white flex items-center justify-center shrink-0 disabled:opacity-60"
+                  aria-label={t("Envoyer")}
+                >
+                  {isReplying ? <Loader2 size={17} className="animate-spin" /> : <Send size={17} />}
+                </button>
+              ) : (
+                <ReactionButton targetType="story" targetId={story.id} myReaction={localReaction} onChange={handleReactionChange} />
+              )}
+              {!replyText.trim() && localTotalReactions > 0 && (
+                <span className="text-white text-sm shrink-0">{localTotalReactions}</span>
+              )}
+            </form>
           )}
         </div>
       </div>

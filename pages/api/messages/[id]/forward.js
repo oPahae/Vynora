@@ -51,8 +51,8 @@ export default async function handler(req, res) {
 
       // eslint-disable-next-line no-await-in-loop
       const result = await query(
-        'INSERT INTO message (conversationId, senderId, content, type, mediaId, fileName) VALUES (?, ?, ?, ?, ?, ?)',
-        [conversationId, payload.id, source.content, source.type, source.mediaId, source.fileName]
+        'INSERT INTO message (conversationId, senderId, content, type, mediaId, fileName, reelId) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        [conversationId, payload.id, source.content, source.type, source.mediaId, source.fileName, source.reelId || null]
       );
       const newMessageId = result.insertId;
 

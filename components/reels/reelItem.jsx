@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback, memo } from 'react';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Heart, MessageCircle, Share2, FolderPlus, MoreHorizontal, Volume2, VolumeX, Play, Pause, Plus, Check,
+  Heart, MessageCircle, Share2, Send, FolderPlus, MoreHorizontal, Volume2, VolumeX, Play, Pause, Plus, Check,
   Flag, EyeOff, Trash2, Pencil, Link2, Sparkles, Loader2, ShieldAlert, Globe, Users, Lock
 } from 'lucide-react';
 import Avatar from '@/components/shared/avatar';
@@ -12,6 +12,7 @@ import ReportModal from '@/components/reports/reportModal';
 import VerifiedBadge from '@/components/shared/verifiedBadge';
 import { AdminDeleteModal } from '@/components/admin/reasonModal';
 import AddToCollectionModal from '@/components/collections/addToCollectionModal';
+import SendReelModal from '@/components/reels/sendReelModal';
 import REACTIONS from '@/components/shared/reactionTypes';
 import { useAuth } from '@/lib/authContext';
 import { useConfirm } from '@/lib/confirmContext';
@@ -145,6 +146,7 @@ function ReelItem({ reel, active, near, muted, autoMuted, onToggleMute, onForceM
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
   const [collectionOpen, setCollectionOpen] = useState(false);
+  const [sendOpen, setSendOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [adminDeleteOpen, setAdminDeleteOpen] = useState(false);
   const [expanded, setExpanded] = useState(false);
@@ -563,6 +565,7 @@ function ReelItem({ reel, active, near, muted, autoMuted, onToggleMute, onForceM
 
         <RailButton icon={MessageCircle} label={compact(reel.commentCount)} title={t("Commentaires")} onClick={() => setCommentsOpen((prev) => !prev)} />
         <RailButton icon={FolderPlus} label={t("Ranger")} title={t("Ajouter a une collection")} onClick={() => setCollectionOpen(true)} />
+        <RailButton icon={Send} label={t("Envoyer")} title={t("Envoyer en message")} onClick={() => setSendOpen(true)} />
         <RailButton icon={Share2} label={t("Partager")} onClick={handleShare} />
 
         <div className="relative">
@@ -675,6 +678,9 @@ function ReelItem({ reel, active, near, muted, autoMuted, onToggleMute, onForceM
       </AnimatePresence>
       <AnimatePresence>
         {reportOpen && <ReportModal targetType="reel" targetId={reel.id} onClose={() => setReportOpen(false)} />}
+      </AnimatePresence>
+      <AnimatePresence>
+        {sendOpen && <SendReelModal reelId={reel.id} onClose={() => setSendOpen(false)} />}
       </AnimatePresence>
       <AnimatePresence>
         {collectionOpen && <AddToCollectionModal itemType="reel" itemId={reel.id} onClose={() => setCollectionOpen(false)} />}

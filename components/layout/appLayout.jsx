@@ -3,7 +3,7 @@ import TopBar from '@/components/layout/topBar';
 import MobileTabBar from '@/components/layout/mobileTabBar';
 
 // Coque de l'application.
-// - md et plus : rail lateral plat (icones seules jusqu'a xl, libelles ensuite) + barre superieure.
+// - md et plus : barre laterale toujours ouverte (icones + libelles) + barre superieure.
 // - mobile : barre superieure legere + dock flottant en bas, pense pour le pouce.
 // `noMobileChrome` : pages plein ecran sur mobile (conversation, serveur) qui masquent
 // header et dock, tout en gardant la coque complete sur tablette et desktop.
@@ -12,7 +12,7 @@ export default function AppLayout({ children, noMobileChrome = false, wide = fal
   return (
     <div className="min-h-screen">
       <Sidebar />
-      <div className="md:ps-[72px] xl:ps-[264px] min-w-0">
+      <div className="md:ps-[264px] min-w-0">
         <div className={noMobileChrome ? 'hidden md:block' : ''}>
           <TopBar />
         </div>

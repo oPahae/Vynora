@@ -18,6 +18,7 @@ function replyPreviewText(message) {
   if (message.type === 'image') return t("Photo");
   if (message.type === 'video') return t("Video");
   if (message.type === 'audio') return t("Message vocal");
+  if (message.type === 'reel') return t("Reel");
   return message.fileName || t("Fichier");
 }
 

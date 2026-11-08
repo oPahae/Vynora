@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { Hash, Loader2, Plus, LogIn } from 'lucide-react';
 import AppLayout from '@/components/layout/appLayout';
 import NameModal from '@/components/servers/nameModal';
+import ServerIcon from '@/components/servers/serverIcon';
 import { inputClasses, primaryButton } from '@/components/servers/modal';
 import { pageTitle } from '@/lib/constants';
 
@@ -107,9 +108,11 @@ export default function ServersPage() {
                   href={`/servers/${guild.id}`}
                   className="flex items-center gap-3 nx-card p-4 hover:border-brand-300 transition-colors"
                 >
-                  <span className="w-12 h-12 rounded-xl2 bg-brand-500 text-white flex items-center justify-center font-display font-semibold text-lg shrink-0">
-                    {guild.name.charAt(0).toUpperCase()}
-                  </span>
+                  <ServerIcon
+                    guild={guild}
+                    className="w-12 h-12 rounded-xl2 bg-brand-500 text-white shrink-0 overflow-hidden"
+                    textClassName="flex items-center justify-center font-display font-semibold text-lg"
+                  />
                   <span className="min-w-0">
                     <span className="block font-medium text-slate-900 truncate">{guild.name}</span>
                     <span className="flex items-center gap-1 text-xs text-slate-400">

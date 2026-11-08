@@ -1,7 +1,9 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import Link from 'next/link';
-import { Hash, Volume2, Lock, ChevronDown, Plus, Pencil, Trash2, UserPlus, LogOut, FolderPlus, Settings2, ShieldCheck, MicOff } from 'lucide-react';
+import { Hash, Volume2, Lock, ChevronDown, Plus, Pencil, Trash2, UserPlus, LogOut, FolderPlus, Settings2, ShieldCheck, MicOff, ImagePlus, ImageOff } from 'lucide-react';
 import Avatar from '@/components/shared/avatar';
+import ServerIcon from '@/components/servers/serverIcon';
+import { useToast } from '@/lib/toastContext';
 import { PERMISSIONS, hasPermission } from '@/lib/guildPermissions';
 
 import { t } from '@/lib/i18n/runtime';
@@ -72,16 +74,53 @@ export default function ChannelSidebar({
   onRenameCategory,
   onDeleteCategory,
   onInvite,
+  onIconChanged,
   onManageRoles,
   onLeave,
   onDeleteGuild
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [iconBusy, setIconBusy] = useState(false);
+  const iconInputRef = useRef(null);
+  const { showToast } = useToast();
   const [collapsed, setCollapsed] = useState(new Set());
   const { guild, categories, channels, permissions, isOwner } = overview;
   const canManageChannels = hasPermission(permissions, PERMISSIONS.MANAGE_CHANNELS);
   const canInvite = hasPermission(permissions, PERMISSIONS.CREATE_INVITE);
   const canManageRoles = hasPermission(permissions, PERMISSIONS.MANAGE_ROLES);
+  const canManageGuild = hasPermission(permissions, PERMISSIONS.MANAGE_GUILD);
+
+  async function uploadIcon(event) {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+    setIconBusy(true);
+    try {
+      const body = new FormData();
+      body.append('media', file);
+      const data = await fetch(`/api/guilds/${guild.id}/icon`, { method: 'POST', body }).then((r) => r.json());
+      if (data.success) {
+        showToast({ title: t("Image du serveur mise a jour"), type: 'success', playSound: false });
+        if (onIconChanged) onIconChanged();
+      } else {
+        showToast({ title: t("Erreur"), message: data.message, type: 'error', playSound: false });
+      }
+    } catch (error) {
+      showToast({ title: t("Impossible de contacter le serveur"), type: 'error', playSound: false });
+    } finally {
+      setIconBusy(false);
+    }
+  }
+
+  async function removeIcon() {
+    setIconBusy(true);
+    try {
+      const data = await fetch(`/api/guilds/${guild.id}/icon`, { method: 'DELETE' }).then((r) => r.json());
+      if (data.success && onIconChanged) onIconChanged();
+    } finally {
+      setIconBusy(false);
+    }
+  }
 
   function toggleCategory(id) {
     setCollapsed((prev) => {
@@ -123,23 +162,27 @@ export default function ChannelSidebar({
           <Link
             key={g.id}
             href={`/servers/${g.id}`}
-            className={`shrink-0 w-10 h-10 rounded-xl2 flex items-center justify-center font-display font-semibold text-sm ${
+            className={`shrink-0 w-10 h-10 rounded-xl2 overflow-hidden flex items-center justify-center font-display font-semibold text-sm ${
               g.id === guild.id ? 'bg-brand-500 text-white' : 'bg-slate-100 text-slate-600'
             }`}
             title={g.name}
           >
-            {g.name.charAt(0).toUpperCase()}
+            <ServerIcon guild={g} className="w-full h-full" textClassName="flex items-center justify-center" />
           </Link>
         ))}
       </div>
 
+      <input ref={iconInputRef} type="file" accept="image/png,image/jpeg,image/webp,image/gif" className="hidden" onChange={uploadIcon} />
       <div className="relative shrink-0">
         <button
           type="button"
           onClick={() => setMenuOpen((open) => !open)}
           className="w-full flex items-center justify-between gap-2 px-4 h-14 border-b border-slate-100 hover:bg-slate-50"
         >
-          <span className="font-display font-semibold text-slate-900 truncate">{guild.name}</span>
+          <span className="flex items-center gap-2.5 min-w-0">
+            {guild.icon && <ServerIcon guild={guild} className="w-8 h-8 rounded-lg shrink-0" />}
+            <span className="font-display font-semibold text-slate-900 truncate">{guild.name}</span>
+          </span>
           <ChevronDown size={16} className={`shrink-0 text-slate-400 transition-transform ${menuOpen ? 'rotate-180' : ''}`} />
         </button>
         {menuOpen && (
@@ -159,6 +202,16 @@ export default function ChannelSidebar({
                     <Plus size={15} />{' '}{t("Creer un salon")}</button>
                   <button type="button" className={menuItem} onClick={onCreateCategory}>
                     <FolderPlus size={15} />{' '}{t("Creer une categorie")}</button>
+                </>
+              )}
+              {canManageGuild && (
+                <>
+                  <button type="button" className={menuItem} disabled={iconBusy} onClick={() => iconInputRef.current?.click()}>
+                    <ImagePlus size={15} />{' '}{guild.icon ? t("Changer l'image du serveur") : t("Ajouter une image au serveur")}</button>
+                  {guild.icon && (
+                    <button type="button" className={menuItem} disabled={iconBusy} onClick={removeIcon}>
+                      <ImageOff size={15} />{' '}{t("Retirer l'image du serveur")}</button>
+                  )}
                 </>
               )}
               {canManageRoles && (

@@ -1,3 +1,4 @@
+import { revokeAllSavedLogins } from '@/lib/savedLogins';
 import { getUserFromRequest, comparePassword, hashPassword } from '@/lib/auth';
 import { query } from '@/lib/db';
 
@@ -32,6 +33,8 @@ export default async function handler(req, res) {
 
     const hashedPassword = await hashPassword(newPassword);
     await query('UPDATE user SET password = ? WHERE id = ?', [hashedPassword, payload.id]);
+    // Les connexions enregistrees (sans mot de passe) ne survivent pas a un changement de mot de passe.
+    await revokeAllSavedLogins(payload.id);
 
     return res.status(200).json({ success: true });
   } catch (error) {

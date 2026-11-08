@@ -1,3 +1,4 @@
+import { revokeAllSavedLogins } from '@/lib/savedLogins';
 import { query } from '@/lib/db';
 import { hashPassword } from '@/lib/auth';
 import { rateLimit, getClientIp } from '@/lib/rateLimit';
@@ -51,6 +52,7 @@ export default async function handler(req, res) {
     }
 
     await query('UPDATE user SET password = ? WHERE id = ?', [await hashPassword(password), id]);
+    await revokeAllSavedLogins(id);
     await deleteResetCodes(id);
     return res.status(200).json({ success: true, message: 'Mot de passe mis a jour' });
   } catch (error) {

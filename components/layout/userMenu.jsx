@@ -2,7 +2,7 @@ import VerifiedBadge from '@/components/shared/verifiedBadge';
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { AnimatePresence, motion } from 'framer-motion';
-import { User, Settings, LogOut, Sun, Moon, ChevronsUpDown } from 'lucide-react';
+import { User, Settings, LogOut, Sun, Moon, ChevronsUpDown, Users } from 'lucide-react';
 import Avatar from '@/components/shared/avatar';
 import { useAuth } from '@/lib/authContext';
 import { useTheme } from '@/lib/themeContext';
@@ -95,6 +95,14 @@ export default function UserMenu({ compact = false }) {
             >
               <Settings size={16} className="text-slate-400" />
               {t('Parametres')}
+            </Link>
+            <Link
+              href="/settings?tab=accountCenter"
+              onClick={() => setOpen(false)}
+              className="flex items-center gap-2.5 px-2.5 h-10 rounded-xl2 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
+            >
+              <Users size={16} className="text-slate-400" />
+              Account Center
             </Link>
             <div className="px-1 py-1.5">
               <ThemeSwitch />
