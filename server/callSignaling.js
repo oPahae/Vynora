@@ -14,8 +14,22 @@
 
 const crypto = require('crypto');
 const mysql = require('mysql2/promise');
+const webpush = require('web-push');
+const { tr } = require('../lib/i18n/server');
+const { isSupportedLocale } = require('../lib/i18n/config');
 
 const RING_TIMEOUT_MS = 45 * 1000;
+// Destinataire hors ligne : on laisse plus de temps pour voir la notification et ouvrir l'app.
+const OFFLINE_RING_TIMEOUT_MS = 60 * 1000;
+
+const PUSH_READY = Boolean(process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY);
+if (PUSH_READY) {
+  webpush.setVapidDetails(
+    `mailto:${process.env.VAPID_CONTACT_EMAIL || 'admin@example.com'}`,
+    process.env.VAPID_PUBLIC_KEY,
+    process.env.VAPID_PRIVATE_KEY
+  );
+}
 const MAX_SIGNAL_SIZE = 100 * 1000;
 
 let pool;
@@ -69,6 +83,47 @@ async function getUserInfo(userId) {
   };
 }
 
+// Notification push vers tous les appareils d'un utilisateur (appel entrant /
+// appel manque quand l'app n'est pas ouverte). Renvoie true si au moins un
+// appareil a ete atteint.
+async function pushToUser(userId, buildPayload) {
+  if (!PUSH_READY) return false;
+  try {
+    const [subs] = await getPool().execute(
+      'SELECT id, endpoint, p256dh, auth FROM pushSubscription WHERE userId = ?',
+      [userId]
+    );
+    if (subs.length === 0) return false;
+    const [langRows] = await getPool().execute('SELECT language FROM user WHERE id = ? LIMIT 1', [userId]);
+    const language = langRows[0] && langRows[0].language;
+    const payload = JSON.stringify(buildPayload(isSupportedLocale(language) ? language : 'fr'));
+
+    let delivered = 0;
+    await Promise.all(
+      subs.map(async (sub) => {
+        try {
+          await webpush.sendNotification(
+            { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
+            payload,
+            { TTL: 60, urgency: 'high' }
+          );
+          delivered += 1;
+        } catch (error) {
+          if (error.statusCode === 404 || error.statusCode === 410) {
+            await getPool().execute('DELETE FROM pushSubscription WHERE id = ?', [sub.id]);
+          } else {
+            console.error('[call push]', error.message);
+          }
+        }
+      })
+    );
+    return delivered > 0;
+  } catch (error) {
+    console.error('[call push]', error.message);
+    return false;
+  }
+}
+
 module.exports = function createCallSignaling(io) {
   const calls = new Map(); // callId -> call
   const userCalls = new Map(); // userId -> callId (un utilisateur = un appel a la fois)
@@ -91,6 +146,18 @@ module.exports = function createCallSignaling(io) {
 
   // Termine l'appel et previente les deux camps (sauf `exceptSocketId`).
   function terminate(call, reason, exceptSocketId) {
+    // Appel non decroche par quelqu'un de hors ligne : la notification "appel entrant"
+    // est remplacee (meme tag) par "appel manque".
+    if (call.notifiedOffline && (reason === 'missed' || reason === 'cancelled') && !hasSockets(call.calleeId)) {
+      pushToUser(call.calleeId, (locale) => ({
+        title: `${call.caller.firstName} ${call.caller.lastName}`,
+        body: tr(locale, 'Appel manque'),
+        url: `/messages/${call.conversationId}`,
+        icon: call.caller.avatar || '/icon.png',
+        tag: `call-${call.id}`,
+        renotify: true
+      })).catch(() => {});
+    }
     const payload = { callId: call.id, reason };
     if (call.callerSocketId && call.callerSocketId !== exceptSocketId) {
       io.to(call.callerSocketId).emit('call:ended', payload);
@@ -127,7 +194,6 @@ module.exports = function createCallSignaling(io) {
         }
         if (userCalls.has(userId)) return reply({ ok: false, reason: 'self_busy' });
         if (userCalls.has(toUserId)) return reply({ ok: false, reason: 'busy' });
-        if (!hasSockets(toUserId)) return reply({ ok: false, reason: 'offline' });
 
         const allowed = await canCall(userId, toUserId, conversationId);
         if (!allowed) return reply({ ok: false, reason: 'not_allowed' });
@@ -139,7 +205,9 @@ module.exports = function createCallSignaling(io) {
         // avant de reserver les deux utilisateurs (bloc synchrone).
         if (userCalls.has(userId)) return reply({ ok: false, reason: 'self_busy' });
         if (userCalls.has(toUserId)) return reply({ ok: false, reason: 'busy' });
-        if (!hasSockets(toUserId)) return reply({ ok: false, reason: 'offline' });
+
+        // Hors ligne : on appelle quand meme (notification push + sonnerie a l'ouverture de l'app).
+        const calleeOffline = !hasSockets(toUserId);
 
         const call = {
           id: crypto.randomUUID(),
@@ -150,7 +218,9 @@ module.exports = function createCallSignaling(io) {
           callerSocketId: socket.id,
           calleeSocketId: null,
           state: 'ringing',
-          timer: null
+          timer: null,
+          caller,
+          notifiedOffline: false
         };
         calls.set(call.id, call);
         userCalls.set(userId, call.id);
@@ -159,7 +229,7 @@ module.exports = function createCallSignaling(io) {
         call.timer = setTimeout(() => {
           const current = calls.get(call.id);
           if (current && current.state === 'ringing') terminate(current, 'missed');
-        }, RING_TIMEOUT_MS);
+        }, calleeOffline ? OFFLINE_RING_TIMEOUT_MS : RING_TIMEOUT_MS);
 
         io.to(userRoom(toUserId)).emit('call:incoming', {
           callId: call.id,
@@ -168,11 +238,40 @@ module.exports = function createCallSignaling(io) {
           caller
         });
 
-        return reply({ ok: true, callId: call.id });
+        let notified = false;
+        if (calleeOffline) {
+          call.notifiedOffline = true;
+          notified = await pushToUser(toUserId, (locale) => ({
+            title: `${caller.firstName} ${caller.lastName}`,
+            body: kind === 'video' ? tr(locale, 'Appel video entrant') : tr(locale, 'Appel vocal entrant'),
+            url: `/messages/${conversationId}`,
+            icon: caller.avatar || '/icon.png',
+            tag: `call-${call.id}`,
+            requireInteraction: true,
+            renotify: true,
+            vibrate: [300, 150, 300, 150, 300]
+          }));
+        }
+
+        return reply({ ok: true, callId: call.id, calleeOffline, notified });
       } catch (error) {
         console.error('call:invite', error);
         return reply({ ok: false, reason: 'error' });
       }
+    });
+
+    // Un client qui vient de se connecter (ex: ouverture de l'app depuis la
+    // notification push) demande s'il y a un appel en train de sonner pour lui.
+    socket.on('call:sync', () => {
+      const callId = userCalls.get(userId);
+      const call = callId ? calls.get(callId) : null;
+      if (!call || call.state !== 'ringing' || call.calleeId !== userId) return;
+      socket.emit('call:incoming', {
+        callId: call.id,
+        kind: call.kind,
+        conversationId: call.conversationId,
+        caller: call.caller
+      });
     });
 
     socket.on('call:accept', (payload, ack) => {

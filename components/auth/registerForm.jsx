@@ -5,6 +5,7 @@ import { motion } from 'framer-motion';
 import { User, Mail, Lock, Eye, EyeOff, LoaderCircle, Cake, KeyRound, MailCheck } from 'lucide-react';
 import FormField from '@/components/auth/formField';
 import PasswordStrengthMeter from '@/components/auth/passwordStrengthMeter';
+import GoogleAuth, { googleErrorMessage } from '@/components/auth/googleAuth';
 import { useAuth } from '@/lib/authContext';
 
 import { t, tRich } from '@/lib/i18n/runtime';
@@ -189,6 +190,14 @@ export default function RegisterForm() {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
+      <GoogleAuth
+        divider="above"
+        onAuthenticated={(user) => {
+          login(user);
+          router.push('/');
+        }}
+        onError={(data) => setServerError(googleErrorMessage(data))}
+      />
       {serverError && (
         <motion.div
           initial={{ opacity: 0, y: -8 }}

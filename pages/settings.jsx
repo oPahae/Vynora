@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/router';
 import Head from 'next/head';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { UserCog, Shield, Palette, Languages, ExternalLink, Bookmark, FileEdit, BellRing, BarChart3 } from 'lucide-react';
+import { UserCog, Shield, Palette, Languages, ExternalLink, Bookmark, FileEdit, BellRing, BarChart3, Users } from 'lucide-react';
 import AppLayout from '@/components/layout/appLayout';
 import EmailSettingsForm from '@/components/settings/emailSettingsForm';
 import PasswordSettingsForm from '@/components/settings/passwordSettingsForm';
@@ -11,12 +12,14 @@ import ThemeSettings from '@/components/settings/themeSettings';
 import LanguageSettings from '@/components/settings/languageSettings';
 import PushNotificationSettings from '@/components/settings/pushNotificationSettings';
 import DangerZoneSettings from '@/components/settings/dangerZoneSettings';
+import AccountCenter from '@/components/auth/accountCenter';
 import { useAuth } from '@/lib/authContext';
 import { pageTitle } from '@/lib/constants';
 
 import { t } from '@/lib/i18n/runtime';
 const TABS = [
   { key: 'account', get label() { return t("Compte"); }, icon: UserCog },
+  { key: 'accountCenter', label: 'Account Center', icon: Users },
   { key: 'privacy', get label() { return t("Confidentialite"); }, icon: Shield },
   { key: 'notifications', get label() { return t("Notifications"); }, icon: BellRing },
   { key: 'appearance', get label() { return t("Apparence"); }, icon: Palette },
@@ -25,7 +28,13 @@ const TABS = [
 
 export default function SettingsPage() {
   const { user } = useAuth();
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState('account');
+
+  // Lien direct : /settings?tab=accountCenter
+  useEffect(() => {
+    if (router.isReady && TABS.some((tab) => tab.key === router.query.tab)) setActiveTab(String(router.query.tab));
+  }, [router.isReady, router.query.tab]);
 
   return (
     <>
@@ -91,6 +100,7 @@ export default function SettingsPage() {
                 </div>
               </>
             )}
+            {activeTab === 'accountCenter' && <AccountCenter variant="settings" />}
             {activeTab === 'privacy' && <PrivacySettings />}
             {activeTab === 'notifications' && <PushNotificationSettings />}
             {activeTab === 'appearance' && <ThemeSettings />}

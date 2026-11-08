@@ -17,6 +17,11 @@ import {
 import { downloadUrl } from '@/lib/downloadUrl';
 import { useToast } from '@/lib/toastContext';
 import AudioPlayer from '@/components/messages/audioPlayer';
+import LinkifiedText from '@/components/messages/linkifiedText';
+import LinkCard from '@/components/messages/linkCard';
+import SharedReelCard from '@/components/messages/sharedReelCard';
+import StoryReplyPreview from '@/components/messages/storyReplyPreview';
+import { extractUrls } from '@/lib/linkSafety';
 
 import { t, formatTime as formatLocalTime } from '@/lib/i18n/runtime';
 function formatTime(dateString) {
@@ -30,6 +35,7 @@ function replyPreviewLabel(replyTo) {
   if (replyTo.type === 'image') return t("Photo");
   if (replyTo.type === 'video') return t("Video");
   if (replyTo.type === 'audio') return t("Message vocal");
+  if (replyTo.type === 'reel') return t("Reel");
   return replyTo.fileName || t("Fichier");
 }
 
@@ -223,7 +229,23 @@ function MessageBubble({ message, isMine, isSeen, animateIn, onEdit, onDelete, o
           </div>
         ) : (
           <>
-            {message.type === 'text' && <p className="text-sm whitespace-pre-wrap">{message.content}</p>}
+            {message.story && <StoryReplyPreview story={message.story} isMine={isMine} />}
+            {message.type === 'text' && (
+              <>
+                <LinkifiedText text={message.content} tone={isMine ? 'dark' : 'light'} />
+                {extractUrls(message.content)
+                  .slice(0, 2)
+                  .map((url) => (
+                    <LinkCard key={url} url={url} tone={isMine ? 'dark' : 'light'} />
+                  ))}
+              </>
+            )}
+            {message.type === 'reel' && (
+              <>
+                <SharedReelCard reel={message.reel} tone={isMine ? 'dark' : 'light'} />
+                {message.content && <LinkifiedText text={message.content} className="mt-1.5" tone={isMine ? 'dark' : 'light'} />}
+              </>
+            )}
             {message.type === 'image' && (
               <div className="relative w-52 h-52 rounded-lg overflow-hidden group">
                 <Image src={message.fileUrl} alt={t("Image")} fill className="object-cover" />

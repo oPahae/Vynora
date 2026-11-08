@@ -555,11 +555,21 @@ export function CallProvider({ children }) {
 
         callObj.callId = res.callId;
         setCall((prev) => (prev ? { ...prev, callId: res.callId } : prev));
+        if (res.calleeOffline) {
+          showToast({
+            title: t("Appel"),
+            message: res.notified
+              ? t("{firstName} est hors ligne : une notification d'appel vient de lui etre envoyee.", { firstName: peer.firstName })
+              : t("{firstName} est hors ligne et n'a pas active les notifications : l'appel sonnera s'il ouvre l'application.", { firstName: peer.firstName }),
+            type: 'info',
+            playSound: false
+          });
+        }
         stopRing();
         stopRingRef.current = startRingback();
       });
     },
-    [abortSilently, installLocalMedia, isFree, setPhase, stopRing, toastError]
+    [abortSilently, installLocalMedia, isFree, setPhase, showToast, stopRing, toastError]
   );
 
   const acceptCall = useCallback(async () => {
@@ -836,7 +846,13 @@ export function CallProvider({ children }) {
     socket.on('call:handled', onHandled);
     socket.on('disconnect', onSocketDisconnect);
 
+    // Appel recu pendant que l'app etait fermee : on demande au serveur s'il sonne encore.
+    const syncPendingCall = () => socket.emit('call:sync');
+    socket.on('connect', syncPendingCall);
+    syncPendingCall();
+
     return () => {
+      socket.off('connect', syncPendingCall);
       socket.off('call:incoming', onIncoming);
       socket.off('call:accepted', onAccepted);
       socket.off('call:signal', onSignal);

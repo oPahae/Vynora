@@ -1,10 +1,13 @@
-import { useRef, useState } from 'react';
+import { useRef, useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { Mail, Lock, Eye, EyeOff, LoaderCircle, CheckCircle2 } from 'lucide-react';
 import FormField from '@/components/auth/formField';
 import Recaptcha from '@/components/auth/recaptcha';
+import AccountCenter from '@/components/auth/accountCenter';
+import GoogleAuth, { googleErrorMessage } from '@/components/auth/googleAuth';
+import SaveLoginPrompt from '@/components/auth/saveLoginPrompt';
 import { useAuth } from '@/lib/authContext';
 
 import { t } from '@/lib/i18n/runtime';
@@ -34,6 +37,37 @@ export default function LoginForm() {
       : '';
   const [errors, setErrors] = useState({});
   const [form, setForm] = useState({ email: '', password: '' });
+  // Apres connexion : proposition d'enregistrer la connexion (Account Center).
+  const [pendingNext, setPendingNext] = useState(null);
+
+  // Email pre-rempli (ex: connexion enregistree expiree).
+  useEffect(() => {
+    if (router.isReady && router.query.email) setForm((prev) => ({ ...prev, email: String(router.query.email) }));
+  }, [router.isReady, router.query.email]);
+
+  function goNext() {
+    const nextPath = router.query.next || '/';
+    // Rechargement complet si on ajoutait un compte : repart d'un etat propre.
+    if (router.query.add === '1') window.location.assign(Array.isArray(nextPath) ? nextPath[0] : nextPath);
+    else router.push(Array.isArray(nextPath) ? nextPath[0] : nextPath);
+  }
+
+  // Une fois connecte : si ce navigateur n'a pas encore ce compte enregistre, on le propose.
+  async function afterAuthenticated(user) {
+    login(user);
+    try {
+      const response = await fetch('/api/auth/saved-logins', { cache: 'no-store' });
+      const data = await response.json();
+      const already = data.success && data.accounts.some((account) => account.id === user.id);
+      if (!already) {
+        setPendingNext(true);
+        return;
+      }
+    } catch (error) {
+      // en cas d'erreur on poursuit simplement la connexion
+    }
+    goNext();
+  }
 
   function handleChange(field, value) {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -85,9 +119,7 @@ export default function LoginForm() {
         return;
       }
 
-      login(data.user);
-      const nextPath = router.query.next || '/';
-      router.push(Array.isArray(nextPath) ? nextPath[0] : nextPath);
+      await afterAuthenticated(data.user);
     } catch (error) {
       setServerError(t("Impossible de contacter le serveur"));
       resetCaptcha();
@@ -97,6 +129,13 @@ export default function LoginForm() {
   }
 
   return (
+    <>
+    <AccountCenter variant="login" />
+    {router.query.add === '1' && (
+      <Link href="/" className="inline-block text-xs text-brand-600 font-medium hover:underline mb-4">
+        {t("← Retour a mon compte")}
+      </Link>
+    )}
     <form onSubmit={handleSubmit} className="space-y-4">
       {terminatedMessage && !serverError && (
         <motion.div
@@ -192,9 +231,19 @@ export default function LoginForm() {
       >
         {isSubmitting && <LoaderCircle size={16} className="animate-spin" />}{t("Se connecter")}</button>
 
+      <GoogleAuth
+        onAuthenticated={(user) => afterAuthenticated(user)}
+        onError={(data) => {
+          setServerError(googleErrorMessage(data));
+          setIsBanned(Boolean(data?.banned));
+        }}
+      />
+
       <p className="text-center text-sm text-slate-500">{t("Pas encore de compte ?")}{' '}
         <Link href="/register" className="text-brand-600 font-medium hover:underline">{t("Creer un compte")}</Link>
       </p>
     </form>
+    {pendingNext && <SaveLoginPrompt onDone={goNext} />}
+    </>
   );
 }

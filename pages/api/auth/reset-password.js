@@ -1,3 +1,4 @@
+import { revokeAllSavedLogins } from '@/lib/savedLogins';
 import { query } from '@/lib/db';
 import { hashPassword } from '@/lib/auth';
 import { validateResetPasswordInput } from '@/lib/validators';
@@ -47,6 +48,7 @@ export default async function handler(req, res) {
 
     const hashedPassword = await hashPassword(data.password);
     await query('UPDATE user SET password = ? WHERE id = ?', [hashedPassword, userId]);
+    await revokeAllSavedLogins(userId);
     await deleteResetCodes(userId);
 
     return res.status(200).json({ success: true, message: 'Mot de passe mis a jour' });

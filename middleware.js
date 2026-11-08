@@ -27,7 +27,11 @@ export async function middleware(request) {
     return NextResponse.redirect(loginUrl);
   }
 
-  if (authenticated && isPublicPath) {
+  // Account Center : "ajouter un compte" ouvre la page de connexion meme
+  // quand une session est deja active (/login?add=1).
+  const isAddAccount = pathname === '/login' && request.nextUrl.searchParams.get('add') === '1';
+
+  if (authenticated && isPublicPath && !isAddAccount) {
     return NextResponse.redirect(new URL('/', request.url));
   }
 
@@ -39,5 +43,5 @@ export const config = {
   // authentification : le Service Worker est enregistre des le chargement
   // de l'app (y compris sur /login), et le manifeste/les icones sont
   // references par le navigateur independamment de la session.
-  matcher: ['/((?!api|_next/static|_next/image|favicon.ico|uploads|sw.js|manifest.json|icon.*\\.png|apple-touch-icon.png).*)']
+  matcher: ['/((?!api|_next/static|_next/image|favicon.*|logo.png|uploads|sw.js|manifest.json|icon.*\\.png|apple-touch-icon.png).*)']
 };

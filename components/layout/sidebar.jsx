@@ -47,7 +47,7 @@ function NavItem({ item, active, badge }) {
       href={item.href}
       title={item.label}
       aria-current={active ? 'page' : undefined}
-      className={`group relative flex items-center gap-3 h-11 rounded-full px-[7px] xl:px-2.5 text-sm font-medium transition-colors justify-center xl:justify-start ${
+      className={`group relative flex items-center gap-3 h-11 rounded-full px-2.5 text-sm font-medium transition-colors justify-start ${
         active ? 'text-white' : 'text-slate-600 hover:text-slate-900'
       }`}
     >
@@ -67,12 +67,9 @@ function NavItem({ item, active, badge }) {
           strokeWidth={active ? 2.2 : 1.8}
           className={`relative transition-[color,transform] duration-300 ease-spring-soft ${active ? 'text-white' : 'group-hover:scale-110'}`}
         />
-        {badge > 0 && (
-          <span className="xl:hidden absolute -top-0.5 -end-0.5 w-2.5 h-2.5 rounded-full bg-ember-500 ring-2 ring-surface animate-badge-pop" />
-        )}
       </span>
-      <span className={`relative hidden xl:block truncate ${active ? 'font-semibold' : ''}`}>{item.label}</span>
-      {badge > 0 && <span className="relative hidden xl:inline-flex ms-auto nx-badge">{badge > 99 ? '99+' : badge}</span>}
+      <span className={`relative block truncate ${active ? 'font-semibold' : ''}`}>{item.label}</span>
+      {badge > 0 && <span className="relative inline-flex ms-auto nx-badge">{badge > 99 ? '99+' : badge}</span>}
     </Link>
   );
 }
@@ -87,12 +84,12 @@ export default function Sidebar() {
 
   return (
     // Rail plat colle au bord gauche : un aplat blanc separe du contenu par un simple filet.
-    <aside className="hidden md:flex fixed inset-y-0 start-0 z-40 w-[72px] xl:w-[264px] flex-col bg-surface border-e border-slate-200 px-3 xl:px-4 pt-5 pb-4">
-      <Link href="/" className="group flex items-center justify-center xl:justify-start gap-3 xl:px-1.5 mb-7 shrink-0" title={APP_NAME}>
+    <aside className="hidden md:flex fixed inset-y-0 start-0 z-40 w-[264px] flex-col bg-surface border-e border-slate-200 px-4 pt-5 pb-4">
+      <Link href="/" className="group flex items-center justify-start gap-3 px-1.5 mb-7 shrink-0" title={APP_NAME}>
         <span className="transition-transform duration-500 ease-spring-soft group-hover:rotate-[-8deg] group-hover:scale-110">
           <Logomark size={36} />
         </span>
-        <span className="hidden xl:block font-display text-[1.35rem] font-bold tracking-tight text-slate-900">{APP_NAME}</span>
+        <span className="block font-display text-[1.35rem] font-bold tracking-tight text-slate-900">{APP_NAME}</span>
       </Link>
 
       <nav className="flex-1 min-h-0 overflow-y-auto scrollbar-none -mx-1 px-1" aria-label="Navigation">
@@ -113,12 +110,7 @@ export default function Sidebar() {
       </nav>
 
       <div className="pt-3 mt-3 border-t border-slate-200 shrink-0">
-        <div className="xl:hidden">
-          <UserMenu compact />
-        </div>
-        <div className="hidden xl:block">
-          <UserMenu />
-        </div>
+        <UserMenu />
       </div>
     </aside>
   );

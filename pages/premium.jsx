@@ -50,7 +50,8 @@ export default function PremiumPage() {
   }
 
   const { config, status, payments } = data;
-  const duration = config.durationDays === 0 ? t("a vie") : t("pour {days} jours", { days: config.durationDays });
+  // Premium = achat unique, valable a vie.
+  const duration = t("a vie");
 
   return (
     <>
@@ -74,7 +75,7 @@ export default function PremiumPage() {
               ) : (
                 <p className="mt-5 text-4xl font-display font-semibold">
                   {formatNumber(config.priceMad)} <span className="text-xl font-medium">MAD</span>
-                  <span className="text-base font-normal text-white/85"> / {duration}</span>
+                  <span className="text-base font-normal text-white/85"> · {t("paiement unique")}, {duration}</span>
                 </p>
               )}
             </div>
@@ -107,10 +108,10 @@ export default function PremiumPage() {
 
           {status.isAdmin ? (
             <div className="nx-card p-5 text-sm text-slate-600 flex items-center gap-2.5"><Crown size={18} className="text-amber-500 shrink-0" /> {t("Premium est inclus d'office avec votre role d'administrateur.")}</div>
-          ) : (
+          ) : status.lifetime ? null : (
           <div className="nx-card p-6">
             <h2 className="font-display text-lg font-semibold text-slate-900">
-              {status.active ? t("Prolonger mon Premium") : t("Activer Premium")}
+              {status.active ? t("Passer a Premium a vie") : t("Activer Premium")}
             </h2>
             <p className="text-sm text-slate-500 mt-1 mb-4">
               {formatNumber(config.priceMad)} MAD {duration}
@@ -119,7 +120,7 @@ export default function PremiumPage() {
               )}
             </p>
             <PaypalCheckout config={config} onPaid={handlePaid} />
-            <p className="text-xs text-slate-400 mt-4">{t("Paiement securise par PayPal. Chaque achat prolonge la duree de votre Premium.")}</p>
+            <p className="text-xs text-slate-400 mt-4">{t("Paiement securise par PayPal. Un seul paiement : votre Premium reste actif a vie, sans abonnement mensuel.")}</p>
           </div>
           )}
 

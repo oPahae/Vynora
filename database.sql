@@ -1,4 +1,4 @@
-DROP DATABASE social_network;
+DROP DATABASE IF EXISTS social_network;
 CREATE DATABASE social_network CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 USE social_network;
 
@@ -17,6 +17,7 @@ CREATE TABLE user (
   firstName VARCHAR(50) NOT NULL,
   lastName VARCHAR(50) NOT NULL,
   email VARCHAR(190) NOT NULL,
+  googleId VARCHAR(64) DEFAULT NULL,
   emailVerifiedAt DATETIME DEFAULT NULL,
   deactivatedAt DATETIME DEFAULT NULL,
   password VARCHAR(255) NOT NULL,
@@ -50,6 +51,7 @@ CREATE TABLE user (
   createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   UNIQUE KEY uq_user_email (email),
+  UNIQUE KEY uq_user_google (googleId),
   KEY idx_user_avatar (avatarId),
   KEY idx_user_cover (coverId),
   KEY idx_user_music (musicMediaId),
@@ -328,10 +330,12 @@ CREATE TABLE message (
   conversationId INT UNSIGNED NOT NULL,
   senderId INT UNSIGNED NOT NULL,
   content TEXT DEFAULT NULL,
-  type ENUM('text','image','video','audio','file') NOT NULL DEFAULT 'text',
+  type ENUM('text','image','video','audio','file','reel') NOT NULL DEFAULT 'text',
   mediaId INT UNSIGNED DEFAULT NULL,
   fileName VARCHAR(255) DEFAULT NULL,
   replyToId INT UNSIGNED DEFAULT NULL,
+  reelId INT UNSIGNED DEFAULT NULL,
+  storyId INT UNSIGNED DEFAULT NULL,
   isEdited TINYINT(1) NOT NULL DEFAULT 0,
   createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -340,11 +344,16 @@ CREATE TABLE message (
   KEY idx_message_sender (senderId),
   KEY idx_message_replyTo (replyToId),
   KEY idx_message_media (mediaId),
+  KEY idx_message_reel (reelId),
+  KEY idx_message_story (storyId),
   CONSTRAINT fk_message_conversation FOREIGN KEY (conversationId) REFERENCES conversation(id) ON DELETE CASCADE,
   CONSTRAINT fk_message_sender FOREIGN KEY (senderId) REFERENCES user(id) ON DELETE CASCADE,
   CONSTRAINT fk_message_replyTo FOREIGN KEY (replyToId) REFERENCES message(id) ON DELETE SET NULL,
   CONSTRAINT fk_message_media FOREIGN KEY (mediaId) REFERENCES media(id) ON DELETE SET NULL
 ) ENGINE=InnoDB;
+
+-- Cles etrangeres reel/story ajoutees plus bas (les tables reel et status
+-- doivent exister avant) : voir la fin du fichier.
 
 CREATE TABLE messageDeletion (
   id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
@@ -545,10 +554,13 @@ CREATE TABLE guild (
   id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   name VARCHAR(80) NOT NULL,
   description VARCHAR(300) DEFAULT NULL,
+  iconId INT UNSIGNED DEFAULT NULL,
   ownerId INT UNSIGNED NOT NULL,
   createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   KEY idx_guild_owner (ownerId),
-  CONSTRAINT fk_guild_owner FOREIGN KEY (ownerId) REFERENCES user(id) ON DELETE CASCADE
+  KEY idx_guild_icon (iconId),
+  CONSTRAINT fk_guild_owner FOREIGN KEY (ownerId) REFERENCES user(id) ON DELETE CASCADE,
+  CONSTRAINT fk_guild_icon FOREIGN KEY (iconId) REFERENCES media(id) ON DELETE SET NULL
 ) ENGINE=InnoDB;
 
 CREATE TABLE guildMember (
@@ -957,4 +969,27 @@ CREATE TABLE IF NOT EXISTS banRecord (
   createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   KEY idx_banRecord_user (userId, createdAt),
   CONSTRAINT fk_banRecord_user FOREIGN KEY (userId) REFERENCES user(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+-- ---------------------------------------------------------------------------
+-- 6) Vynora : messages lies aux reels / stories, connexions enregistrees
+-- ---------------------------------------------------------------------------
+ALTER TABLE message
+  ADD CONSTRAINT fk_message_reel FOREIGN KEY (reelId) REFERENCES reel(id) ON DELETE SET NULL,
+  ADD CONSTRAINT fk_message_story FOREIGN KEY (storyId) REFERENCES status(id) ON DELETE SET NULL;
+
+-- Connexions enregistrees : le navigateur garde un jeton aleatoire dans un
+-- cookie HttpOnly, seul son hash SHA-256 est stocke ici. Sert a l'Account Center
+-- (changer de compte / se connecter sans mot de passe).
+CREATE TABLE IF NOT EXISTS savedLogin (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  userId INT UNSIGNED NOT NULL,
+  tokenHash CHAR(64) NOT NULL,
+  label VARCHAR(120) DEFAULT NULL,
+  createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  lastUsedAt DATETIME DEFAULT NULL,
+  expiresAt DATETIME NOT NULL,
+  UNIQUE KEY uq_savedLogin_token (tokenHash),
+  KEY idx_savedLogin_user (userId),
+  CONSTRAINT fk_savedLogin_user FOREIGN KEY (userId) REFERENCES user(id) ON DELETE CASCADE
 ) ENGINE=InnoDB;

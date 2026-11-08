@@ -209,8 +209,8 @@ export default function PremiumTab() {
           <Field label={t("Prix (MAD)")} hint={t("Prix affiche aux utilisateurs.")}>
             <input type="number" min="1" step="0.01" value={settings.premium_price_mad} onChange={set('premium_price_mad')} className={inputClass} />
           </Field>
-          <Field label={t("Duree d'un achat (jours)")} hint={t("0 = Premium a vie.")}>
-            <input type="number" min="0" step="1" value={settings.premium_duration_days} onChange={set('premium_duration_days')} className={inputClass} />
+          <Field label={t("Duree d'un achat")} hint={t("Tout achat Premium est a vie (paiement unique).")}>
+            <input type="text" value={t("A vie")} readOnly disabled className={inputClass} />
           </Field>
           <Field label={t("Devise facturee par PayPal")} hint={t("PayPal n'accepte pas le dirham : le montant est converti.")}>
             <select value={settings.premium_charge_currency} onChange={set('premium_charge_currency')} className={inputClass}>

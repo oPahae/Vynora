@@ -10,6 +10,7 @@ import RolesModal from '@/components/servers/rolesModal';
 import MemberModal from '@/components/servers/memberModal';
 import VoiceChannel from '@/components/servers/voiceChannel';
 import NameModal from '@/components/servers/nameModal';
+import ServerIcon from '@/components/servers/serverIcon';
 import Modal, { inputClasses, primaryButton } from '@/components/servers/modal';
 import { useSocket } from '@/lib/socketContext';
 import { useAuth } from '@/lib/authContext';
@@ -284,13 +285,13 @@ export default function ServerView({ guildId }) {
             key={g.id}
             href={`/servers/${g.id}`}
             title={g.name}
-            className={`w-11 h-11 flex items-center justify-center font-display font-semibold transition-all ${
+            className={`w-11 h-11 flex items-center justify-center overflow-hidden font-display font-semibold transition-all ${
               g.id === guildId
                 ? 'rounded-xl2 bg-surface text-slate-900 shadow-soft'
                 : 'rounded-full bg-surface text-slate-600 hover:rounded-xl2 hover:bg-brand-50 border border-slate-100'
             }`}
           >
-            {g.name.charAt(0).toUpperCase()}
+            <ServerIcon guild={g} className="w-full h-full" textClassName="flex items-center justify-center" />
           </Link>
         ))}
         <Link
@@ -328,6 +329,10 @@ export default function ServerView({ guildId }) {
             onRenameCategory={(category) => setNameModal({ mode: 'rename', category })}
             onDeleteCategory={deleteCategory}
             onInvite={() => setInviteOpen(true)}
+            onIconChanged={() => {
+              loadOverview();
+              api('/api/guilds').then((data) => data.success && setGuilds(data.guilds));
+            }}
             onManageRoles={() => setRolesOpen(true)}
             onLeave={leaveGuild}
             onDeleteGuild={deleteGuild}

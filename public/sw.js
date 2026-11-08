@@ -12,16 +12,19 @@ self.addEventListener('push', (event) => {
   try {
     payload = event.data.json();
   } catch (error) {
-    payload = { title: 'Nexus', body: event.data.text() };
+    payload = { title: 'Vynora', body: event.data.text() };
   }
 
-  const title = payload.title || 'Nexus';
+  const title = payload.title || 'Vynora';
   const options = {
     body: payload.body || '',
     icon: payload.icon || '/icon.png',
     badge: '/icon.png',
     data: { url: payload.url || '/' },
-    tag: payload.tag || undefined
+    tag: payload.tag || undefined,
+    renotify: Boolean(payload.tag && payload.renotify),
+    requireInteraction: payload.requireInteraction === true,
+    vibrate: Array.isArray(payload.vibrate) ? payload.vibrate : undefined
   };
 
   event.waitUntil(self.registration.showNotification(title, options));
