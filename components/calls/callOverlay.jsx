@@ -10,12 +10,16 @@ import {
   MicOff,
   MonitorUp,
   MonitorOff,
+  Volume2,
+  VolumeX,
   Minimize2,
   Maximize2,
   Loader2
 } from 'lucide-react';
 import Avatar from '@/components/shared/avatar';
 import { useCall, formatDuration } from '@/lib/callContext';
+import { useSpeakerOutput, useAutoplayRecovery } from '@/lib/audioOutput';
+import { useToast } from '@/lib/toastContext';
 
 import { t } from '@/lib/i18n/runtime';
 // Couleurs en valeurs arbitraires Tailwind : le mode sombre de l'application
@@ -115,6 +119,7 @@ export default function CallOverlay() {
     toggleScreenShare
   } = useCall();
 
+  const { showToast } = useToast();
   const audioRef = useRef(null);
   const remoteVideoRef = useRef(null);
   const localVideoRef = useRef(null);
@@ -129,8 +134,29 @@ export default function CallOverlay() {
     const element = audioRef.current;
     if (!element) return;
     element.srcObject = remoteStream || null;
+    element.muted = false;
+    element.volume = 1;
     if (remoteStream) element.play().catch(() => {});
   }, [remoteStream]);
+
+  // Haut-parleur / ecouteur (setSinkId quand le navigateur le permet).
+  const { speakerOn, toggleSpeaker } = useSpeakerOutput({
+    getElements: () => [audioRef.current],
+    deps: [remoteStream, phase === 'active'],
+    onUnavailable: (reason) =>
+      showToast({
+        title: t("Appel"),
+        message:
+          reason === 'unsupported'
+            ? t("Ce navigateur ne permet pas de changer la sortie audio : utilisez les reglages de votre appareil.")
+            : t("Aucun ecouteur detecte : le son reste sur la sortie par defaut."),
+        type: 'info',
+        playSound: false
+      })
+  });
+
+  // Reprise de la lecture si le navigateur l'a suspendue (autoplay, retour d'onglet...).
+  useAutoplayRecovery(() => [audioRef.current, remoteVideoRef.current], Boolean(call) && phase !== 'idle');
 
   useEffect(() => {
     if (remoteVideoRef.current) {
@@ -285,6 +311,14 @@ export default function CallOverlay() {
                       label={cameraOn ? t("Couper la camera") : t("Activer la camera")}
                     >
                       {cameraOn ? <Video size={22} /> : <VideoOff size={22} />}
+                    </ControlButton>
+
+                    <ControlButton
+                      onClick={toggleSpeaker}
+                      tone={speakerOn ? 'active' : 'idle'}
+                      label={speakerOn ? t("Desactiver le haut-parleur") : t("Activer le haut-parleur")}
+                    >
+                      {speakerOn ? <Volume2 size={22} /> : <VolumeX size={22} />}
                     </ControlButton>
 
                     {canShareScreen && (

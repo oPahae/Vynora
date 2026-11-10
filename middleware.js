@@ -3,6 +3,10 @@ import { jwtVerify } from 'jose';
 
 const PUBLIC_PATHS = ['/login', '/register', '/forgot-password', '/find-account', '/appeal'];
 const AUTH_COOKIE_NAME = 'authToken';
+// Pages consultables sans compte : une publication partagee a l'exterieur
+// (/post/123) ou une annonce du Market (/market/123). La page elle-meme verifie
+// que le contenu est bien public (sinon redirection vers la connexion).
+const PUBLIC_PAGE_PATTERNS = [/^\/post\/\d+$/, /^\/market\/\d+$/];
 
 async function isTokenValid(token) {
   if (!token) return false;
@@ -20,8 +24,9 @@ export async function middleware(request) {
   const token = request.cookies.get(AUTH_COOKIE_NAME)?.value;
   const authenticated = await isTokenValid(token);
   const isPublicPath = PUBLIC_PATHS.includes(pathname);
+  const isPublicPage = PUBLIC_PAGE_PATTERNS.some((pattern) => pattern.test(pathname));
 
-  if (!authenticated && !isPublicPath) {
+  if (!authenticated && !isPublicPath && !isPublicPage) {
     const loginUrl = new URL('/login', request.url);
     loginUrl.searchParams.set('next', pathname);
     return NextResponse.redirect(loginUrl);

@@ -60,12 +60,14 @@ export function getNotificationText(notification) {
     case 'friendAccept':
       return t("{name} a accepte votre demande d'ami", { name });
     case 'like':
+      if (notification.targetType === 'product') return t("{name} a aime votre annonce", { name });
       if (notification.targetType === 'reel') return t("{name} a reagi a votre reel", { name });
       if (notification.targetType === 'reelComment') return t("{name} a reagi a votre commentaire de reel", { name });
       return notification.targetType === 'post'
         ? t("{name} a reagi a votre publication", { name })
         : t("{name} a reagi a votre commentaire", { name });
     case 'comment':
+      if (notification.targetType === 'product') return t("{name} a commente votre annonce", { name });
       if (notification.targetType === 'reel') return t("{name} a commente votre reel", { name });
       return t("{name} a commente votre publication", { name });
     case 'reply':
@@ -123,6 +125,9 @@ export function getNotificationHref(notification) {
     } catch (error) {
       return null;
     }
+  }
+  if (notification.targetType === 'product' && notification.targetId) {
+    return `/market/${notification.targetId}`;
   }
   if (notification.targetType === 'group' && notification.targetId) {
     return `/groups/${notification.targetId}`;

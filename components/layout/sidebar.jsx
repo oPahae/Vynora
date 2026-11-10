@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { motion } from 'framer-motion';
-import { Home, Users, MessageCircle, Compass, UsersRound, Hash, Bookmark, FilePen, BarChart3, Clapperboard, FolderOpen, History, ShieldCheck, Crown, Eye, Smartphone } from 'lucide-react';
+import { Home, Users, MessageCircle, Compass, UsersRound, Hash, Store, Bookmark, FilePen, BarChart3, Clapperboard, FolderOpen, History, ShieldCheck, Crown, Eye, Smartphone } from 'lucide-react';
 import Logomark from '@/components/shared/logomark';
 import UserMenu from '@/components/layout/userMenu';
 import { useUnreadMessagesCount, useFriendRequestsCount } from '@/lib/useUnreadCount';
@@ -19,6 +19,7 @@ export function getNavGroups(isAdmin = false, isPremium = false) {
       { href: '/friends', label: t('Amis'), icon: Users, badgeKey: 'friends' },
       { href: '/groups', label: t('Groupes'), icon: UsersRound },
       { href: '/servers', label: t('Serveurs'), icon: Hash },
+      { href: '/market', label: t('Market'), icon: Store },
       { href: '/messages', label: t('Messages'), icon: MessageCircle, badgeKey: 'messages' }
     ],
     [

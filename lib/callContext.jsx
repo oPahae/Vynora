@@ -3,6 +3,7 @@ import { useAuth } from '@/lib/authContext';
 import { useSocket } from '@/lib/socketContext';
 import { useToast } from '@/lib/toastContext';
 import { startRingtone, startRingback, playEndTone } from '@/lib/callSounds';
+import { supportsOutputSelection } from '@/lib/audioOutput';
 
 import { t } from '@/lib/i18n/runtime';
 // Gestion globale des appels audio / video / partage d'ecran (WebRTC).
@@ -19,9 +20,16 @@ import { t } from '@/lib/i18n/runtime';
 const CallContext = createContext(null);
 
 const ENDED_DISPLAY_MS = 2500;
-const RECONNECT_GRACE_MS = 15000;
+const RECONNECT_GRACE_MS = 30000;
 const ICE_CACHE_MS = 10 * 60 * 1000;
-const DEFAULT_ICE_SERVERS = [{ urls: 'stun:stun.l.google.com:19302' }];
+const DEFAULT_ICE_SERVERS = [
+  { urls: 'stun:stun.l.google.com:19302' },
+  { urls: 'stun:stun1.l.google.com:19302' },
+  { urls: 'stun:stun.cloudflare.com:3478' }
+];
+// Delai (ms) avant de tenter un redemarrage ICE quand la connexion passe a "disconnected".
+const ICE_RESTART_DELAY_MS = 2500;
+const MAX_ICE_RESTARTS = 4;
 const DEFAULT_REMOTE_MEDIA = { audio: true, camera: false, screen: false };
 const VIDEO_CONSTRAINTS = { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: 'user' };
 
@@ -116,6 +124,7 @@ export function CallProvider({ children }) {
   const [endedMessage, setEndedMessage] = useState('');
   const [minimized, setMinimized] = useState(false);
   const [canShareScreen, setCanShareScreen] = useState(false);
+  const [speakerSupported, setSpeakerSupported] = useState(false);
 
   const socketRef = useRef(null);
   const phaseRef = useRef('idle');
@@ -133,6 +142,12 @@ export function CallProvider({ children }) {
   const durationTimerRef = useRef(null);
   const reconnectTimerRef = useRef(null);
   const endedTimerRef = useRef(null);
+  const negotiatingRef = useRef(false);
+  const pendingNegotiationRef = useRef(null);
+  const negotiateRef = useRef(null);
+  const iceRestartTimerRef = useRef(null);
+  const iceRestartsRef = useRef(0);
+  const wakeLockRef = useRef(null);
 
   useEffect(() => {
     socketRef.current = socket;
@@ -143,7 +158,39 @@ export function CallProvider({ children }) {
       typeof navigator !== 'undefined' &&
         Boolean(navigator.mediaDevices && navigator.mediaDevices.getDisplayMedia)
     );
+    setSpeakerSupported(supportsOutputSelection());
   }, []);
+
+  // Empeche l'ecran de se mettre en veille pendant un appel (sinon, sur mobile,
+  // le navigateur peut suspendre l'audio et l'appel "coupe").
+  const acquireWakeLock = useCallback(async () => {
+    try {
+      if (typeof navigator !== 'undefined' && navigator.wakeLock && !wakeLockRef.current) {
+        const lock = await navigator.wakeLock.request('screen');
+        wakeLockRef.current = lock;
+        lock.addEventListener('release', () => {
+          if (wakeLockRef.current === lock) wakeLockRef.current = null;
+        });
+      }
+    } catch (error) {
+      // non supporte / refuse : sans consequence
+    }
+  }, []);
+
+  const releaseWakeLock = useCallback(() => {
+    const lock = wakeLockRef.current;
+    wakeLockRef.current = null;
+    if (lock) lock.release().catch(() => {});
+  }, []);
+
+  // Le verrou est perdu quand l'onglet passe en arriere-plan : on le reprend au retour.
+  useEffect(() => {
+    function onVisible() {
+      if (document.visibilityState === 'visible' && callRef.current && phaseRef.current === 'active') acquireWakeLock();
+    }
+    document.addEventListener('visibilitychange', onVisible);
+    return () => document.removeEventListener('visibilitychange', onVisible);
+  }, [acquireWakeLock]);
 
   const setPhase = useCallback((next) => {
     phaseRef.current = next;
@@ -182,9 +229,15 @@ export function CallProvider({ children }) {
       if (durationTimerRef.current) clearInterval(durationTimerRef.current);
       if (reconnectTimerRef.current) clearTimeout(reconnectTimerRef.current);
       if (endedTimerRef.current) clearTimeout(endedTimerRef.current);
+      if (iceRestartTimerRef.current) clearTimeout(iceRestartTimerRef.current);
       durationTimerRef.current = null;
       reconnectTimerRef.current = null;
       endedTimerRef.current = null;
+      iceRestartTimerRef.current = null;
+      iceRestartsRef.current = 0;
+      negotiatingRef.current = false;
+      pendingNegotiationRef.current = null;
+      releaseWakeLock();
 
       const pc = pcRef.current;
       if (pc) {
@@ -234,7 +287,7 @@ export function CallProvider({ children }) {
         resetToIdle();
       }, ENDED_DISPLAY_MS);
     },
-    [resetToIdle, setPhase, stopRing]
+    [releaseWakeLock, resetToIdle, setPhase, stopRing]
   );
 
   // Termine l'appel courant. `reason` sert a choisir le message affiche.
@@ -335,35 +388,90 @@ export function CallProvider({ children }) {
       if (c && c.connectedAt) setDuration(Math.floor((Date.now() - c.connectedAt) / 1000));
     }, 1000);
     sendMediaState();
-  }, [sendMediaState, setPhase, stopRing]);
+    acquireWakeLock();
+  }, [acquireWakeLock, sendMediaState, setPhase, stopRing]);
+
+  // Renegociation (offre / reponse) : indispensable des qu'une piste video
+  // (camera, partage d'ecran) est ajoutee ou retiree, et pour relancer ICE.
+  // Seul l'appelant produit des offres ; l'appele lui en demande une via
+  // le message { type: 'negotiate' }, ce qui evite toute collision d'offres.
+  const negotiate = useCallback(
+    async ({ iceRestart = false } = {}) => {
+      const current = callRef.current;
+      const pc = pcRef.current;
+      if (!current || !pc || current.finished) return;
+
+      if (current.role !== 'caller') {
+        sendSignal({ type: 'negotiate', iceRestart });
+        return;
+      }
+      if (negotiatingRef.current || pc.signalingState !== 'stable') {
+        const pending = pendingNegotiationRef.current;
+        pendingNegotiationRef.current = { iceRestart: Boolean(iceRestart || (pending && pending.iceRestart)) };
+        return;
+      }
+
+      negotiatingRef.current = true;
+      try {
+        const offer = await pc.createOffer({ iceRestart });
+        await pc.setLocalDescription(offer);
+        sendSignal({ type: 'offer', sdp: pc.localDescription.sdp });
+      } catch (error) {
+        negotiatingRef.current = false;
+        console.warn('Renegociation impossible', error);
+      }
+    },
+    [sendSignal]
+  );
+  negotiateRef.current = negotiate;
 
   const createPeerConnection = useCallback(async () => {
     const iceServers = await getIceServers();
-    const pc = new RTCPeerConnection({ iceServers });
-    const remote = new MediaStream();
+    const pc = new RTCPeerConnection({ iceServers, bundlePolicy: 'max-bundle', iceCandidatePoolSize: 2 });
 
-    remoteStreamRef.current = remote;
-    setRemoteStream(remote);
+    // Le flux distant est reconstruit a chaque nouvelle piste : un
+    // MediaStream dont on ajoute les pistes apres coup n'est pas toujours
+    // relu par les elements <audio>/<video> (Safari, Firefox) -> "pas de son".
+    const first = new MediaStream();
+    remoteStreamRef.current = first;
+    setRemoteStream(first);
 
     pc.ontrack = (event) => {
-      if (!remote.getTracks().some((track) => track.id === event.track.id)) {
-        remote.addTrack(event.track);
-      }
+      const known = remoteStreamRef.current ? remoteStreamRef.current.getTracks() : [];
+      if (known.some((track) => track.id === event.track.id)) return;
+      const next = new MediaStream([...known, event.track]);
+      remoteStreamRef.current = next;
+      setRemoteStream(next);
     };
 
     pc.onicecandidate = (event) => {
       if (event.candidate) sendSignal({ type: 'candidate', candidate: event.candidate.toJSON() });
     };
 
+    const scheduleIceRestart = (delay) => {
+      if (iceRestartTimerRef.current) return;
+      iceRestartTimerRef.current = setTimeout(() => {
+        iceRestartTimerRef.current = null;
+        if (pcRef.current !== pc || pc.connectionState === 'connected' || pc.connectionState === 'closed') return;
+        if (iceRestartsRef.current >= MAX_ICE_RESTARTS) return;
+        iceRestartsRef.current += 1;
+        if (negotiateRef.current) negotiateRef.current({ iceRestart: true });
+      }, delay);
+    };
+
     pc.onconnectionstatechange = () => {
       const state = pc.connectionState;
       if (state === 'connected') {
         if (reconnectTimerRef.current) clearTimeout(reconnectTimerRef.current);
+        if (iceRestartTimerRef.current) clearTimeout(iceRestartTimerRef.current);
         reconnectTimerRef.current = null;
+        iceRestartTimerRef.current = null;
+        iceRestartsRef.current = 0;
         setIsReconnecting(false);
         markActive();
       } else if (state === 'disconnected') {
         setIsReconnecting(true);
+        scheduleIceRestart(ICE_RESTART_DELAY_MS);
         if (!reconnectTimerRef.current) {
           reconnectTimerRef.current = setTimeout(() => {
             reconnectTimerRef.current = null;
@@ -373,7 +481,12 @@ export function CallProvider({ children }) {
           }, RECONNECT_GRACE_MS);
         }
       } else if (state === 'failed') {
-        finishCall('connection_failed', { notifyServer: true });
+        setIsReconnecting(true);
+        if (iceRestartsRef.current >= MAX_ICE_RESTARTS) {
+          finishCall('connection_failed', { notifyServer: true });
+        } else {
+          scheduleIceRestart(300);
+        }
       }
     };
 
@@ -428,6 +541,14 @@ export function CallProvider({ children }) {
       } else if (data.type === 'answer') {
         await pc.setRemoteDescription({ type: 'answer', sdp: data.sdp });
         await flushCandidates(pc);
+        negotiatingRef.current = false;
+        const pending = pendingNegotiationRef.current;
+        if (pending) {
+          pendingNegotiationRef.current = null;
+          negotiate(pending);
+        }
+      } else if (data.type === 'negotiate') {
+        if (current.role === 'caller') negotiate({ iceRestart: Boolean(data.iceRestart) });
       } else if (data.type === 'candidate' && data.candidate) {
         if (pc.remoteDescription) {
           try {
@@ -440,7 +561,7 @@ export function CallProvider({ children }) {
         }
       }
     },
-    [bindLocalTracks, flushCandidates, sendSignal]
+    [bindLocalTracks, flushCandidates, negotiate, sendSignal]
   );
 
   // ---------------------------------------------------------------------------
@@ -661,6 +782,7 @@ export function CallProvider({ children }) {
         }
       }
       sendMediaState();
+      negotiate();
       return;
     }
 
@@ -676,10 +798,11 @@ export function CallProvider({ children }) {
         await sendersRef.current.video.replaceTrack(track);
       }
       sendMediaState();
+      negotiate();
     } catch (error) {
       toastError(describeMediaError(error, 'camera'));
     }
-  }, [attachCameraTrack, sendMediaState, toastError]);
+  }, [attachCameraTrack, negotiate, sendMediaState, toastError]);
 
   const stopScreenShare = useCallback(async () => {
     const track = screenTrackRef.current;
@@ -696,7 +819,8 @@ export function CallProvider({ children }) {
       }
     }
     sendMediaState();
-  }, [sendMediaState]);
+    negotiate();
+  }, [negotiate, sendMediaState]);
 
   const startScreenShare = useCallback(async () => {
     const current = callRef.current;
@@ -747,7 +871,10 @@ export function CallProvider({ children }) {
       return;
     }
     sendMediaState();
-  }, [sendMediaState, stopScreenShare, toastError]);
+    // Renegociation : le flux video devient officiellement emetteur dans le SDP
+    // (identifiants de flux), ce qui rend l'affichage fiable chez le correspondant.
+    negotiate();
+  }, [negotiate, sendMediaState, stopScreenShare, toastError]);
 
   const toggleScreenShare = useCallback(() => {
     if (screenTrackRef.current) stopScreenShare();
@@ -795,9 +922,7 @@ export function CallProvider({ children }) {
         await videoTransceiver.sender.replaceTrack(screenTrackRef.current || cameraTrackRef.current || null);
         if (current.finished) return;
 
-        const offer = await pc.createOffer();
-        await pc.setLocalDescription(offer);
-        sendSignal({ type: 'offer', sdp: pc.localDescription.sdp });
+        await negotiate();
       } catch (error) {
         console.error('Negociation WebRTC impossible', error);
         finishCall('error', { notifyServer: true });
@@ -834,8 +959,37 @@ export function CallProvider({ children }) {
       abortSilently(current);
     }
 
+    // Coupure de la signalisation : l'audio/video passe en pair-a-pair et
+    // peut survivre. Pendant un appel etabli on attend donc la reconnexion
+    // (le serveur garde l'appel quelques secondes) au lieu de raccrocher.
     function onSocketDisconnect() {
-      if (callRef.current) finishCall('connection_lost');
+      const current = callRef.current;
+      if (!current) return;
+      if ((phaseRef.current === 'active' || phaseRef.current === 'connecting') && current.callId && pcRef.current) {
+        setIsReconnecting(true);
+        return;
+      }
+      finishCall('connection_lost');
+    }
+
+    function onSocketReconnect() {
+      const current = callRef.current;
+      if (!current || current.finished || !current.callId) return;
+      if (phaseRef.current !== 'active' && phaseRef.current !== 'connecting') return;
+      socket.timeout(8000).emit('call:resume', { callId: current.callId }, (err, res) => {
+        if (current.finished) return;
+        if (err || !res || !res.ok) {
+          finishCall('connection_lost');
+          return;
+        }
+        const pc = pcRef.current;
+        if (pc && pc.connectionState === 'connected') setIsReconnecting(false);
+        else if (negotiateRef.current) negotiateRef.current({ iceRestart: true });
+      });
+    }
+
+    function onPeerSignalLost() {
+      if (phaseRef.current === 'active') setIsReconnecting(true);
     }
 
     socket.on('call:incoming', onIncoming);
@@ -845,6 +999,8 @@ export function CallProvider({ children }) {
     socket.on('call:ended', onEnded);
     socket.on('call:handled', onHandled);
     socket.on('disconnect', onSocketDisconnect);
+    socket.on('connect', onSocketReconnect);
+    socket.on('call:peer-offline', onPeerSignalLost);
 
     // Appel recu pendant que l'app etait fermee : on demande au serveur s'il sonne encore.
     const syncPendingCall = () => socket.emit('call:sync');
@@ -860,12 +1016,15 @@ export function CallProvider({ children }) {
       socket.off('call:ended', onEnded);
       socket.off('call:handled', onHandled);
       socket.off('disconnect', onSocketDisconnect);
+      socket.off('connect', onSocketReconnect);
+      socket.off('call:peer-offline', onPeerSignalLost);
     };
   }, [
     abortSilently,
     createPeerConnection,
     finishCall,
     isFree,
+    negotiate,
     processSignal,
     sendSignal,
     setPhase,
@@ -886,6 +1045,8 @@ export function CallProvider({ children }) {
       if (durationTimerRef.current) clearInterval(durationTimerRef.current);
       if (reconnectTimerRef.current) clearTimeout(reconnectTimerRef.current);
       if (endedTimerRef.current) clearTimeout(endedTimerRef.current);
+      if (iceRestartTimerRef.current) clearTimeout(iceRestartTimerRef.current);
+      if (wakeLockRef.current) wakeLockRef.current.release().catch(() => {});
       if (pcRef.current) pcRef.current.close();
       if (micStreamRef.current) micStreamRef.current.getTracks().forEach(stopTrack);
       stopTrack(cameraTrackRef.current);
@@ -909,6 +1070,7 @@ export function CallProvider({ children }) {
     minimized,
     setMinimized,
     canShareScreen,
+    speakerSupported,
     isInCall: phase !== 'idle' && phase !== 'ended',
     startCall,
     acceptCall,

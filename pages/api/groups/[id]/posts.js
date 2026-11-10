@@ -1,7 +1,8 @@
 import { getUserFromRequest } from '@/lib/auth';
 import { logActivity, snippet } from '@/lib/activity';
 import { query } from '@/lib/db';
-import { parseUpload, getField, saveMediaFiles } from '@/lib/upload';
+import { getField, saveMediaFiles } from '@/lib/upload';
+import { parsePostRequest, findPostByClientKey, rememberClientKey } from '@/lib/uploadSessions';
 import { hydrateFullPosts, POST_SELECT, syncPostHashtags, syncPostMentions } from '@/lib/posts';
 import { getGroupById, isActiveMember, canViewGroupContent } from '@/lib/groups';
 
@@ -63,12 +64,22 @@ export default async function handler(req, res) {
     }
 
     try {
-      const { fields, files } = await parseUpload(req, ALLOWED_TYPES);
+      const { fields, files, preMedia } = await parsePostRequest(req, ALLOWED_TYPES, payload.id);
+
+      const clientKey = getField(fields, 'clientKey', '').toString().slice(0, 80);
+      const existingPostId = await findPostByClientKey(payload.id, clientKey);
+      if (existingPostId) {
+        const existingRows = await query(`${POST_SELECT} WHERE p.id = ? LIMIT 1`, [existingPostId]);
+        if (existingRows.length > 0) {
+          const [existing] = await hydrateFullPosts(existingRows, payload.id);
+          return res.status(200).json({ success: true, post: existing });
+        }
+      }
 
       const content = getField(fields, 'content').toString().trim();
       const mentionsRaw = getField(fields, 'mentions', '[]');
 
-      if (!content && files.length === 0) {
+      if (!content && files.length === 0 && preMedia.length === 0) {
         return res.status(422).json({ success: false, message: 'La publication ne peut pas etre vide' });
       }
 
@@ -92,12 +103,16 @@ export default async function handler(req, res) {
       ]);
       const postId = result.insertId;
 
-      if (files.length > 0) {
-        const mediaIds = await saveMediaFiles(files, payload.id);
-        const mediaValues = files.map((file, index) => [
+      if (files.length + preMedia.length > 0) {
+        const savedIds = files.length > 0 ? await saveMediaFiles(files, payload.id) : [];
+        const allMedia = [
+          ...files.map((file, index) => ({ id: savedIds[index], mimetype: file.mimetype })),
+          ...preMedia
+        ];
+        const mediaValues = allMedia.map((media, index) => [
           postId,
-          mediaIds[index],
-          file.mimetype.startsWith('video') ? 'video' : 'image',
+          media.id,
+          media.mimetype.startsWith('video') ? 'video' : 'image',
           index
         ]);
         await query(
@@ -108,6 +123,7 @@ export default async function handler(req, res) {
 
       await syncPostHashtags(postId, content);
       await syncPostMentions(postId, mentionUserIds, payload.id);
+      await rememberClientKey(payload.id, clientKey, postId);
 
       const postRows = await query(`${POST_SELECT} WHERE p.id = ? LIMIT 1`, [postId]);
       const [hydrated] = await hydrateFullPosts(postRows, payload.id);
