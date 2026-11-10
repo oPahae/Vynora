@@ -1,6 +1,7 @@
 import { getUserFromRequest } from '@/lib/auth';
 import { query } from '@/lib/db';
 import { extensionForMime, sanitizeDownloadFilename } from '@/lib/upload';
+import { isMediaPubliclyViewable } from '@/lib/publicPost';
 
 export const config = {
   api: {
@@ -50,9 +51,6 @@ export default async function handler(req, res) {
   }
 
   const payload = await getUserFromRequest(req);
-  if (!payload) {
-    return res.status(401).json({ success: false, message: 'Non authentifie' });
-  }
 
   const mediaId = Number(req.query.id);
   if (!Number.isInteger(mediaId)) {
@@ -60,6 +58,13 @@ export default async function handler(req, res) {
   }
 
   try {
+    // Visiteur sans compte (lien partage a l'exterieur, apercu WhatsApp...) :
+    // seuls les medias de contenus publics sont servis.
+    const isPublicAccess = !payload;
+    if (isPublicAccess && !(await isMediaPubliclyViewable(mediaId))) {
+      return res.status(401).json({ success: false, message: 'Non authentifie' });
+    }
+
     const rows = await query('SELECT mimetype, data, size FROM media WHERE id = ? LIMIT 1', [mediaId]);
     if (rows.length === 0) {
       return res.status(404).json({ success: false, message: 'Media introuvable' });
@@ -76,7 +81,7 @@ export default async function handler(req, res) {
     // progression video qui repartait a zero).
     res.setHeader('Content-Type', media.mimetype);
     res.setHeader('Accept-Ranges', 'bytes');
-    res.setHeader('Cache-Control', 'private, max-age=86400');
+    res.setHeader('Cache-Control', isPublicAccess ? 'public, max-age=3600' : 'private, max-age=86400');
 
     // ?download=1 (avec un ?filename= optionnel pour garder le nom original,
     // utilise notamment pour les pieces jointes des messages) force le

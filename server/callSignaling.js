@@ -31,6 +31,10 @@ if (PUSH_READY) {
   );
 }
 const MAX_SIGNAL_SIZE = 100 * 1000;
+// Coupure de la signalisation (reseau mobile, veille...) pendant un appel
+// etabli : on garde l'appel ce delai pour laisser le client se reconnecter
+// (evenement call:resume) au lieu de raccrocher immediatement.
+const RESUME_GRACE_MS = 30 * 1000;
 
 let pool;
 function getPool() {
@@ -137,8 +141,15 @@ module.exports = function createCallSignaling(io) {
     return Boolean(room && room.size > 0);
   }
 
+  function clearLostTimers(call) {
+    if (!call.lostTimers) return;
+    Object.values(call.lostTimers).forEach((timer) => clearTimeout(timer));
+    call.lostTimers = null;
+  }
+
   function cleanup(call) {
     if (call.timer) clearTimeout(call.timer);
+    clearLostTimers(call);
     calls.delete(call.id);
     if (userCalls.get(call.callerId) === call.id) userCalls.delete(call.callerId);
     if (userCalls.get(call.calleeId) === call.id) userCalls.delete(call.calleeId);
@@ -361,12 +372,42 @@ module.exports = function createCallSignaling(io) {
       });
     });
 
+    // Un client dont la socket vient de se reconnecter reprend un appel etabli.
+    socket.on('call:resume', (payload, ack) => {
+      const reply = typeof ack === 'function' ? ack : () => {};
+      const call = findCall(payload && payload.callId);
+      if (!call || call.state !== 'active') return reply({ ok: false });
+
+      let role = null;
+      if (call.callerId === userId) role = 'caller';
+      else if (call.calleeId === userId) role = 'callee';
+      if (!role) return reply({ ok: false });
+
+      if (call.lostTimers && call.lostTimers[role]) {
+        clearTimeout(call.lostTimers[role]);
+        delete call.lostTimers[role];
+      }
+      if (role === 'caller') call.callerSocketId = socket.id;
+      else call.calleeSocketId = socket.id;
+      return reply({ ok: true });
+    });
+
     socket.on('disconnect', () => {
       for (const call of Array.from(calls.values())) {
-        if (call.callerSocketId === socket.id) {
+        const isActiveCaller = call.state === 'active' && call.callerSocketId === socket.id;
+        const isActiveCallee = call.state === 'active' && call.calleeSocketId === socket.id;
+        if (isActiveCaller || isActiveCallee) {
+          const role = isActiveCaller ? 'caller' : 'callee';
+          if (!call.lostTimers) call.lostTimers = {};
+          if (call.lostTimers[role]) clearTimeout(call.lostTimers[role]);
+          const otherSocketId = isActiveCaller ? call.calleeSocketId : call.callerSocketId;
+          if (otherSocketId) io.to(otherSocketId).emit('call:peer-offline', { callId: call.id });
+          call.lostTimers[role] = setTimeout(() => {
+            const current = calls.get(call.id);
+            if (current && current.lostTimers && current.lostTimers[role]) terminate(current, 'disconnected');
+          }, RESUME_GRACE_MS);
+        } else if (call.callerSocketId === socket.id) {
           terminate(call, call.state === 'ringing' ? 'cancelled' : 'disconnected', socket.id);
-        } else if (call.state === 'active' && call.calleeSocketId === socket.id) {
-          terminate(call, 'disconnected', socket.id);
         } else if (call.state === 'ringing' && call.calleeId === userId && !hasSockets(userId)) {
           // Le destinataire n'a plus aucun onglet ouvert : inutile de faire sonner.
           terminate(call, 'missed', socket.id);

@@ -10,6 +10,8 @@ import { parseCookieHeader } from '@/lib/i18n/server';
 import { ToastProvider } from '@/lib/toastContext';
 import { ConfirmProvider } from '@/lib/confirmContext';
 import { CallProvider } from '@/lib/callContext';
+import { UploadQueueProvider } from '@/lib/uploadQueue';
+import UploadQueueBanner from '@/components/shared/uploadQueueBanner';
 import ToastContainer from '@/components/shared/toastContainer';
 import ConfirmDialogContainer from '@/components/shared/confirmDialogContainer';
 import GlobalToastListener from '@/components/shared/globalToastListener';
@@ -48,6 +50,7 @@ export default function App({ Component, pageProps, initialLocale }) {
             <ToastProvider>
               <ConfirmProvider>
                 <CallProvider>
+                <UploadQueueProvider>
                   <AmbientBackground />
                   <CursorLight />
                   <RouteProgress />
@@ -56,6 +59,8 @@ export default function App({ Component, pageProps, initialLocale }) {
                   <ConfirmDialogContainer />
                   <PageShell Component={Component} pageProps={pageProps} />
                   <CallOverlay />
+                  <UploadQueueBanner />
+                </UploadQueueProvider>
                 </CallProvider>
               </ConfirmProvider>
             </ToastProvider>

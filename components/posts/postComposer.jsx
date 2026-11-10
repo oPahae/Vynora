@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Loader2, Send, Save } from 'lucide-react';
 import Avatar from '@/components/shared/avatar';
@@ -7,15 +7,30 @@ import MediaPicker from '@/components/posts/mediaPicker';
 import MentionTextarea from '@/components/posts/mentionTextarea';
 import AiAssistantPanel from '@/components/posts/aiAssistantPanel';
 import LocationInput from '@/components/posts/locationInput';
-import UploadProgressBar from '@/components/shared/uploadProgressBar';
 import { useAuth } from '@/lib/authContext';
 import { useToast } from '@/lib/toastContext';
 import { uploadFormData } from '@/lib/uploadClient';
+import { useUploadQueue } from '@/lib/uploadQueue';
 
 import { t } from '@/lib/i18n/runtime';
 export default function PostComposer({ onPostCreated, groupId }) {
   const { user } = useAuth();
   const { showToast } = useToast();
+  const { enqueuePost, subscribe } = useUploadQueue();
+  const onCreatedRef = useRef(onPostCreated);
+  onCreatedRef.current = onPostCreated;
+
+  // Les publications avec medias sont envoyees en arriere-plan (file globale,
+  // reprise apres rechargement) : on affiche le post des qu'il est publie.
+  useEffect(
+    () =>
+      subscribe((event) => {
+        if (event.type !== 'done' || !event.post) return;
+        if ((event.job.groupId || null) !== (groupId || null)) return;
+        if (onCreatedRef.current) onCreatedRef.current(event.post);
+      }),
+    [subscribe, groupId]
+  );
   const [content, setContent] = useState('');
   const [mentionedUsers, setMentionedUsers] = useState([]);
   const [visibility, setVisibility] = useState('public');
@@ -24,7 +39,6 @@ export default function PostComposer({ onPostCreated, groupId }) {
   const [location, setLocation] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSavingDraft, setIsSavingDraft] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState(null);
   const [error, setError] = useState('');
 
   function resetForm() {
@@ -81,9 +95,37 @@ export default function PostComposer({ onPostCreated, groupId }) {
       return;
     }
 
-    setIsSubmitting(true);
     setError('');
-    setUploadProgress(newFiles.length > 0 ? 0 : null);
+    const endpoint = groupId ? `/api/groups/${groupId}/posts` : '/api/posts';
+
+    // Avec des medias : envoi en arriere-plan. Le formulaire se libere tout de
+    // suite ; la progression reste visible (meme apres un rechargement de page).
+    if (newFiles.length > 0) {
+      const jobId = enqueuePost({
+        endpoint,
+        groupId: groupId || null,
+        files: newFiles.map((item) => item.file),
+        fields: {
+          content: content.trim(),
+          visibility,
+          visibilityUserIds: JSON.stringify(selectedUserIds),
+          location: location.trim(),
+          mentions: JSON.stringify(resolveMentionIds())
+        }
+      });
+      if (jobId) {
+        resetForm();
+        showToast({
+          title: t("Envoi en arriere-plan"),
+          message: t("Votre publication s'envoie. Vous pouvez continuer a naviguer ou recharger la page."),
+          type: 'info',
+          playSound: false
+        });
+        return;
+      }
+    }
+
+    setIsSubmitting(true);
 
     try {
       const formData = new FormData();
@@ -94,9 +136,7 @@ export default function PostComposer({ onPostCreated, groupId }) {
       formData.append('mentions', JSON.stringify(resolveMentionIds()));
       newFiles.forEach((item) => formData.append('media', item.file));
 
-      const { data } = await uploadFormData(groupId ? `/api/groups/${groupId}/posts` : '/api/posts', formData, {
-        onProgress: setUploadProgress
-      });
+      const { data } = await uploadFormData(endpoint, formData);
 
       if (!data.success) {
         setError(data.message || t("Erreur lors de la publication"));
@@ -109,7 +149,6 @@ export default function PostComposer({ onPostCreated, groupId }) {
       setError(t("Impossible de contacter le serveur"));
     } finally {
       setIsSubmitting(false);
-      setUploadProgress(null);
     }
   }
 
@@ -145,9 +184,6 @@ export default function PostComposer({ onPostCreated, groupId }) {
 
       <div className="mt-2">
         <MediaPicker existingMedia={[]} onRemoveExisting={() => {}} newFiles={newFiles} onNewFilesChange={setNewFiles} />
-        {isSubmitting && uploadProgress !== null && (
-          <UploadProgressBar progress={uploadProgress} label={t("Envoi du media...")} />
-        )}
       </div>
 
       <div className="flex items-center justify-between mt-3 pt-3 border-t border-slate-100 flex-wrap gap-y-3 gap-x-2">

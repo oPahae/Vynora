@@ -393,7 +393,7 @@ CREATE TABLE notification (
   userId INT UNSIGNED NOT NULL,
   actorId INT UNSIGNED NOT NULL,
   type ENUM('message','comment','reply','mention','like','share','status','friendRequest','friendAccept','groupInvite','groupRemoved','groupRoleChange','moderation','loginAlert','premiumPurchase','premiumWelcome') NOT NULL,
-  targetType ENUM('post','comment','message','status','user','group','guildMessage','reel','reelComment') DEFAULT NULL,
+  targetType ENUM('post','comment','message','status','user','group','guildMessage','reel','reelComment','product') DEFAULT NULL,
   targetId INT UNSIGNED DEFAULT NULL,
   content VARCHAR(255) DEFAULT NULL,
   isRead TINYINT(1) NOT NULL DEFAULT 0,
@@ -992,4 +992,110 @@ CREATE TABLE IF NOT EXISTS savedLogin (
   UNIQUE KEY uq_savedLogin_token (tokenHash),
   KEY idx_savedLogin_user (userId),
   CONSTRAINT fk_savedLogin_user FOREIGN KEY (userId) REFERENCES user(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+-- ---------------------------------------------------------------------------
+-- 7) Envoi de fichiers en arriere-plan (par morceaux, reprenable)
+-- ---------------------------------------------------------------------------
+-- Une session par fichier ; les morceaux sont assembles dans `media` par
+-- /api/uploads/<id>/complete puis supprimes. Les sessions abandonnees sont
+-- purgees automatiquement (48 h).
+CREATE TABLE IF NOT EXISTS uploadSession (
+  id CHAR(36) NOT NULL PRIMARY KEY,
+  userId INT UNSIGNED NOT NULL,
+  clientKey VARCHAR(80) NOT NULL,
+  filename VARCHAR(255) DEFAULT NULL,
+  mimetype VARCHAR(100) NOT NULL,
+  size INT UNSIGNED NOT NULL,
+  chunkSize INT UNSIGNED NOT NULL,
+  totalChunks INT UNSIGNED NOT NULL,
+  mediaId INT UNSIGNED DEFAULT NULL,
+  createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE KEY uq_uploadSession_client (userId, clientKey),
+  KEY idx_uploadSession_updated (updatedAt),
+  CONSTRAINT fk_uploadSession_user FOREIGN KEY (userId) REFERENCES user(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS uploadChunk (
+  sessionId CHAR(36) NOT NULL,
+  idx INT UNSIGNED NOT NULL,
+  data MEDIUMBLOB NOT NULL,
+  PRIMARY KEY (sessionId, idx),
+  CONSTRAINT fk_uploadChunk_session FOREIGN KEY (sessionId) REFERENCES uploadSession(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+-- Cle d'idempotence d'une publication envoyee en arriere-plan : si le client
+-- renvoie la meme requete (reponse perdue, rechargement), aucun doublon.
+CREATE TABLE IF NOT EXISTS postClientKey (
+  userId INT UNSIGNED NOT NULL,
+  clientKey VARCHAR(80) NOT NULL,
+  postId INT UNSIGNED NOT NULL,
+  createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (userId, clientKey),
+  CONSTRAINT fk_postClientKey_user FOREIGN KEY (userId) REFERENCES user(id) ON DELETE CASCADE,
+  CONSTRAINT fk_postClientKey_post FOREIGN KEY (postId) REFERENCES post(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+-- ---------------------------------------------------------------------------
+-- 8) Market : annonces, photos, j'aime, commentaires
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS marketProduct (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  sellerId INT UNSIGNED NOT NULL,
+  title VARCHAR(150) NOT NULL,
+  description TEXT DEFAULT NULL,
+  price DECIMAL(12,2) NOT NULL DEFAULT 0,
+  currency VARCHAR(8) NOT NULL DEFAULT 'MAD',
+  category VARCHAR(40) NOT NULL DEFAULT 'other',
+  conditionType ENUM('new','like_new','good','fair','for_parts') NOT NULL DEFAULT 'good',
+  city VARCHAR(100) DEFAULT NULL,
+  phone VARCHAR(40) DEFAULT NULL,
+  whatsapp VARCHAR(40) DEFAULT NULL,
+  allowMessages TINYINT(1) NOT NULL DEFAULT 1,
+  status ENUM('active','sold','removed') NOT NULL DEFAULT 'active',
+  viewsCount INT UNSIGNED NOT NULL DEFAULT 0,
+  createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  deletedAt DATETIME DEFAULT NULL,
+  KEY idx_marketProduct_seller (sellerId),
+  KEY idx_marketProduct_listing (status, deletedAt, createdAt),
+  KEY idx_marketProduct_category (category),
+  CONSTRAINT fk_marketProduct_seller FOREIGN KEY (sellerId) REFERENCES user(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS marketProductMedia (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  productId INT UNSIGNED NOT NULL,
+  mediaId INT UNSIGNED NOT NULL,
+  position TINYINT UNSIGNED NOT NULL DEFAULT 0,
+  KEY idx_marketProductMedia_product (productId),
+  KEY idx_marketProductMedia_media (mediaId),
+  CONSTRAINT fk_marketProductMedia_product FOREIGN KEY (productId) REFERENCES marketProduct(id) ON DELETE CASCADE,
+  CONSTRAINT fk_marketProductMedia_media FOREIGN KEY (mediaId) REFERENCES media(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS marketProductLike (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  productId INT UNSIGNED NOT NULL,
+  userId INT UNSIGNED NOT NULL,
+  createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY uq_marketProductLike (productId, userId),
+  KEY idx_marketProductLike_user (userId),
+  CONSTRAINT fk_marketProductLike_product FOREIGN KEY (productId) REFERENCES marketProduct(id) ON DELETE CASCADE,
+  CONSTRAINT fk_marketProductLike_user FOREIGN KEY (userId) REFERENCES user(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS marketComment (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  productId INT UNSIGNED NOT NULL,
+  userId INT UNSIGNED NOT NULL,
+  content VARCHAR(1000) NOT NULL,
+  isEdited TINYINT(1) NOT NULL DEFAULT 0,
+  createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  deletedAt DATETIME DEFAULT NULL,
+  KEY idx_marketComment_product (productId, createdAt),
+  KEY idx_marketComment_user (userId),
+  CONSTRAINT fk_marketComment_product FOREIGN KEY (productId) REFERENCES marketProduct(id) ON DELETE CASCADE,
+  CONSTRAINT fk_marketComment_user FOREIGN KEY (userId) REFERENCES user(id) ON DELETE CASCADE
 ) ENGINE=InnoDB;

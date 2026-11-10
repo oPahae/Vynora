@@ -36,9 +36,23 @@ export default async function handler(req, res) {
         return res.status(403).json({ success: false, message: 'Action impossible' });
       }
 
-      const friendRow = await getFriendRow(payload.id, targetId);
-      if (!friendRow || friendRow.status !== 'accepted') {
-        return res.status(403).json({ success: false, message: 'Vous devez etre amis pour discuter' });
+      // Exception : contacter un vendeur depuis une annonce du Market
+      // (sans etre amis), si l'annonce est active et accepte les messages.
+      const productId = Number(req.body?.productId);
+      let viaMarket = false;
+      if (Number.isInteger(productId)) {
+        const productRows = await query(
+          "SELECT 1 FROM marketProduct WHERE id = ? AND sellerId = ? AND allowMessages = 1 AND deletedAt IS NULL AND status <> 'removed' LIMIT 1",
+          [productId, targetId]
+        );
+        viaMarket = productRows.length > 0;
+      }
+
+      if (!viaMarket) {
+        const friendRow = await getFriendRow(payload.id, targetId);
+        if (!friendRow || friendRow.status !== 'accepted') {
+          return res.status(403).json({ success: false, message: 'Vous devez etre amis pour discuter' });
+        }
       }
 
       const conversationId = await getOrCreateDirectConversation(payload.id, targetId);

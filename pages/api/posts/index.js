@@ -1,7 +1,8 @@
 import { getUserFromRequest } from '@/lib/auth';
 import { logActivity, snippet } from '@/lib/activity';
 import { query } from '@/lib/db';
-import { parseUpload, getField, saveMediaFiles } from '@/lib/upload';
+import { getField, saveMediaFiles } from '@/lib/upload';
+import { parsePostRequest, findPostByClientKey, rememberClientKey } from '@/lib/uploadSessions';
 import { hydrateFullPosts, POST_SELECT, syncPostHashtags, syncPostMentions } from '@/lib/posts';
 
 export const config = {
@@ -34,7 +35,21 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { fields, files } = await parseUpload(req, ALLOWED_TYPES);
+    // Multipart (fichiers joints) ou JSON (fichiers deja envoyes en arriere-plan
+    // via /api/uploads, references par `mediaIds`).
+    const { fields, files, preMedia } = await parsePostRequest(req, ALLOWED_TYPES, payload.id);
+
+    // Idempotence : si le client renvoie la meme publication (reponse perdue,
+    // rechargement de page...), on retourne celle deja creee.
+    const clientKey = getField(fields, 'clientKey', '').toString().slice(0, 80);
+    const existingPostId = await findPostByClientKey(payload.id, clientKey);
+    if (existingPostId) {
+      const existingRows = await query(`${POST_SELECT} WHERE p.id = ? LIMIT 1`, [existingPostId]);
+      if (existingRows.length > 0) {
+        const [existing] = await hydrateFullPosts(existingRows, payload.id);
+        return res.status(200).json({ success: true, post: existing });
+      }
+    }
 
     const content = getField(fields, 'content').toString().trim();
     const visibility = getField(fields, 'visibility', 'public').toString();
@@ -46,7 +61,7 @@ export default async function handler(req, res) {
       return res.status(422).json({ success: false, message: 'Visibilite invalide' });
     }
 
-    if (!content && files.length === 0) {
+    if (!content && files.length === 0 && preMedia.length === 0) {
       return res
         .status(422)
         .json({ success: false, message: 'Une publication doit contenir du texte ou un media' });
@@ -79,12 +94,16 @@ export default async function handler(req, res) {
 
     const postId = result.insertId;
 
-    if (files.length > 0) {
-      const mediaIds = await saveMediaFiles(files, payload.id);
-      const mediaValues = files.map((file, index) => [
+    if (files.length + preMedia.length > 0) {
+      const savedIds = files.length > 0 ? await saveMediaFiles(files, payload.id) : [];
+      const allMedia = [
+        ...files.map((file, index) => ({ id: savedIds[index], mimetype: file.mimetype })),
+        ...preMedia
+      ];
+      const mediaValues = allMedia.map((media, index) => [
         postId,
-        mediaIds[index],
-        file.mimetype.startsWith('video') ? 'video' : 'image',
+        media.id,
+        media.mimetype.startsWith('video') ? 'video' : 'image',
         index
       ]);
       await query(
@@ -105,6 +124,7 @@ export default async function handler(req, res) {
 
     await syncPostHashtags(postId, content);
     await syncPostMentions(postId, mentionUserIds, payload.id);
+    await rememberClientKey(payload.id, clientKey, postId);
 
     const postRows = await query(`${POST_SELECT} WHERE p.id = ? LIMIT 1`, [postId]);
     const [hydrated] = await hydrateFullPosts(postRows, payload.id);
@@ -112,7 +132,7 @@ export default async function handler(req, res) {
     await logActivity(payload.id, 'post_create', {
       targetType: 'post',
       targetId: postId,
-      meta: { snippet: snippet(content), visibility, media: files.length }
+      meta: { snippet: snippet(content), visibility, media: files.length + preMedia.length }
     });
 
     return res.status(201).json({ success: true, post: hydrated });

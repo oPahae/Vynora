@@ -285,7 +285,9 @@ REEL_MAX_FILE_BYTES=        # défaut : 209715200 (200 Mo)
 | `MAX_UPLOAD_SIZE` | — | Plafond d'upload en octets (aucune limite si vide) |
 | `NEXT_PUBLIC_RECAPTCHA_SITE_KEY` / `RECAPTCHA_SECRET_KEY` | — | reCAPTCHA v2 ; clé secrète vide = désactivé |
 | `MAIL_API_URL` | — | API HTTP d'envoi d'e-mails |
-| `ICE_SERVERS` | — | Serveurs STUN/TURN ; STUN Google par défaut |
+| `ICE_SERVERS` | — | Serveurs STUN/TURN ; STUN Google par défaut. **Un serveur TURN est fortement recommandé** (voir « Fiabilité des appels ») |
+| `NEXT_PUBLIC_APP_URL` | — | URL publique du site (liens partagés, aperçus WhatsApp/Facebook). Déduite de la requête si absente |
+| `MARKET_DEFAULT_COUNTRY_CODE` | `212` | Indicatif ajouté aux numéros WhatsApp saisis au format national (`06…`) |
 | `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` / `VAPID_CONTACT_EMAIL` | — | Web Push ; vides = push désactivé sans erreur |
 | `ADMIN_EMAILS` | — | Promotion automatique en administrateur |
 | `PAYPAL_CLIENT_ID` / `PAYPAL_CLIENT_SECRET` / `PAYPAL_MODE` | — | Paiement Premium |
@@ -294,6 +296,40 @@ REEL_MAX_FILE_BYTES=        # défaut : 209715200 (200 Mo)
 > ⚠️ **Ne commitez jamais `.env`.** Il est déjà couvert par `.gitignore` (seul `.env.example` est autorisé).
 
 ---
+
+## Nouveautés : appels, envoi en arrière-plan, partage externe, Market
+
+### Base de données existante
+Exécutez la migration (ne supprime rien) :
+
+```bash
+mysql -u <user> -p <base> < migrations/2026-market-background-upload.sql
+```
+Pour une nouvelle installation, `database.sql` contient déjà les nouvelles tables.
+
+### Fiabilité des appels
+- **Haut-parleur** : bouton dédié dans les appels 1-à-1 et les salons vocaux (sortie audio via `setSinkId` ; sur les navigateurs qui ne le permettent pas, la sortie reste gérée par le système et un message l'indique).
+- **Son absent / coupures** : flux distants reconstruits à chaque nouvelle piste, reprise automatique de la lecture bloquée par l'autoplay, **redémarrage ICE** automatique, **reprise de l'appel après coupure de la signalisation** (le serveur garde l'appel 30 s, événement `call:resume`), reconnexion automatique au salon vocal, verrou d'écran (Wake Lock) pendant l'appel.
+- **Partage d'écran** (appels et salons vocaux) : chaque ajout/retrait de piste vidéo déclenche une **renégociation** WebRTC ; les messages de signalisation d'un même pair sont traités en file.
+- ⚠️ **Configurez un serveur TURN** (`ICE_SERVERS`), p. ex. coturn :
+  ```env
+  ICE_SERVERS=[{"urls":"stun:stun.l.google.com:19302"},{"urls":["turn:turn.example.com:3478?transport=udp","turns:turn.example.com:5349?transport=tcp"],"username":"user","credential":"pass"}]
+  ```
+  Sans TURN, les appels échouent ou n'ont pas de son derrière certains NAT (4G/5G, entreprises). Le HTTPS est obligatoire.
+
+### Envoi de publications en arrière-plan
+Les publications avec médias sont envoyées **par morceaux de 2 Mo** (`/api/uploads`), pendant que vous naviguez. La tâche est conservée dans **IndexedDB** : après un **rechargement de page** l'envoi **reprend automatiquement** et une bannière indique la progression. Création idempotente (`postClientKey`) : pas de doublon.
+
+### Partage hors de l'application
+- Fenêtre « Partager » → onglet **À l'extérieur** : copier le lien, feuille de partage native, WhatsApp, Telegram, Facebook, X, e-mail.
+- `/post/<id>` est consultable **sans compte** pour les publications **publiques** (profil non privé), avec balises Open Graph (aperçu riche). Les autres publications redirigent vers la connexion.
+
+### Market (`/market`)
+- Annonces avec photos (8 max), prix, devise (MAD/EUR/USD), catégorie, état, ville ; recherche, filtres, tri.
+- **J'aime** et **commentaires** sur chaque annonce, notifications au vendeur.
+- **Achat hors application** : le vendeur renseigne téléphone et/ou WhatsApp, et/ou autorise les **messages** de l'application (un acheteur peut écrire au vendeur sans être ami, uniquement via une annonce active).
+- Le vendeur peut modifier, marquer « vendu » ou supprimer. Les coordonnées ne sont jamais montrées aux visiteurs non connectés.
+
 
 ## Base de données
 

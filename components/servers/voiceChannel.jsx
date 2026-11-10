@@ -13,12 +13,14 @@ import {
   Volume1,
   Maximize2,
   X,
-  MousePointerClick
+  MousePointerClick,
+  VolumeX
 } from 'lucide-react';
 import Avatar from '@/components/shared/avatar';
 import { useSocket } from '@/lib/socketContext';
 import { useAuth } from '@/lib/authContext';
 import { useVoiceChannel } from '@/lib/guildVoice';
+import { applyAudioOutput, supportsOutputSelection } from '@/lib/audioOutput';
 
 import { t } from '@/lib/i18n/runtime';
 function ControlButton({ active, danger, disabled, onClick, label, children }) {
@@ -66,7 +68,7 @@ function StreamVideo({ stream, className }) {
 }
 
 // Lecture du son d'un participant distant (element invisible) + volume.
-function PeerAudio({ stream, volume }) {
+function PeerAudio({ stream, volume, speakerOn }) {
   const audioRef = useRef(null);
 
   useEffect(() => {
@@ -78,6 +80,30 @@ function PeerAudio({ stream, volume }) {
       if (playing && typeof playing.catch === 'function') playing.catch(() => {});
     }
   }, [stream]);
+
+  // Sortie audio (haut-parleur / ecouteur) quand le navigateur le permet.
+  useEffect(() => {
+    applyAudioOutput(audioRef.current, speakerOn);
+  }, [speakerOn, stream]);
+
+  // Relance la lecture si le navigateur l'a bloquee (autoplay) ou suspendue.
+  useEffect(() => {
+    const resume = () => {
+      const element = audioRef.current;
+      if (element && element.srcObject && element.paused) {
+        const playing = element.play();
+        if (playing && typeof playing.catch === 'function') playing.catch(() => {});
+      }
+    };
+    window.addEventListener('pointerdown', resume);
+    document.addEventListener('visibilitychange', resume);
+    const timer = setInterval(resume, 2000);
+    return () => {
+      window.removeEventListener('pointerdown', resume);
+      document.removeEventListener('visibilitychange', resume);
+      clearInterval(timer);
+    };
+  }, []);
 
   useEffect(() => {
     // HTMLMediaElement.volume n'accepte qu'un nombre entre 0 et 1.
@@ -234,6 +260,8 @@ export default function VoiceChannel({ guildId, channel, onBack, onHangup }) {
   const { socket } = useSocket();
   const { user } = useAuth();
   const [volumes, setVolumes] = useState({});
+  const [speakerOn, setSpeakerOn] = useState(true);
+  const [outputNotice, setOutputNotice] = useState('');
   const [focusKey, setFocusKey] = useState(null); // null = automatique, 'none' = rien, sinon cle du participant
   const {
     status,
@@ -330,6 +358,15 @@ export default function VoiceChannel({ guildId, channel, onBack, onHangup }) {
         <span className="ms-auto text-xs text-white/50">{peerList.length + (status === 'connected' ? 1 : 0)}{' '}{t("connecte(s)")}</span>
       </div>
 
+      {status === 'connected' && outputNotice && (
+        <div className="shrink-0 flex items-center gap-2 bg-white/10 text-white/80 text-xs px-4 py-2">
+          <span className="flex-1">{outputNotice}</span>
+          <button type="button" onClick={() => setOutputNotice('')} aria-label={t("Fermer")} className="shrink-0 text-white/70 hover:text-white">
+            <X size={14} />
+          </button>
+        </div>
+      )}
+
       {status === 'connected' && errorMessage && (
         <div className="shrink-0 flex items-center gap-2 bg-red-500/15 text-red-200 text-xs px-4 py-2">
           <span className="flex-1">{errorMessage}</span>
@@ -353,7 +390,7 @@ export default function VoiceChannel({ guildId, channel, onBack, onHangup }) {
           <>
             {/* Le son des autres participants (invisible). */}
             {peerList.map(([socketId, peer]) => (
-              <PeerAudio key={t("audio-{socketId}", { socketId })} stream={peer.stream} volume={volumes[socketId] ?? 1} />
+              <PeerAudio key={t("audio-{socketId}", { socketId })} stream={peer.stream} volume={volumes[socketId] ?? 1} speakerOn={speakerOn} />
             ))}
 
             {focused ? (
@@ -384,6 +421,21 @@ export default function VoiceChannel({ guildId, channel, onBack, onHangup }) {
           </ControlButton>
           <ControlButton active={selfState.screen} disabled={!caps.canScreenShare} onClick={toggleScreenShare} label={selfState.screen ? t("Arreter le partage d'ecran") : t("Partager l'ecran")}>
             {selfState.screen ? <MonitorUp size={19} /> : <MonitorOff size={19} />}
+          </ControlButton>
+          <ControlButton
+            active={speakerOn}
+            onClick={() => {
+              const next = !speakerOn;
+              setSpeakerOn(next);
+              if (!supportsOutputSelection()) {
+                setOutputNotice(t("Ce navigateur ne permet pas de changer la sortie audio : utilisez les reglages de votre appareil."));
+              } else {
+                setOutputNotice('');
+              }
+            }}
+            label={speakerOn ? t("Desactiver le haut-parleur") : t("Activer le haut-parleur")}
+          >
+            {speakerOn ? <Volume2 size={19} /> : <VolumeX size={19} />}
           </ControlButton>
           <ControlButton danger onClick={onHangup} label={t("Quitter le salon vocal")}>
             <PhoneOff size={19} />
