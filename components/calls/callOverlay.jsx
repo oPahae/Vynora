@@ -215,7 +215,7 @@ export default function CallOverlay() {
               />
 
               {!showRemoteVideo && (
-                <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 px-6 text-center bg-slate-900">
+                <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 px-6 text-center bg-ink">
                   <div className="relative">
                     {(phase === 'outgoing' || phase === 'connecting') && (
                       <span className="absolute -inset-3 rounded-full bg-brand-500/25 animate-ping" />

@@ -20,7 +20,7 @@ export default function SharedReelCard({ reel, tone = 'light' }) {
       className="block w-56 rounded-xl2 overflow-hidden bg-black relative group"
       title={t("Ouvrir le reel")}
     >
-      <div className="relative aspect-[9/14] bg-slate-900">
+      <div className="relative aspect-[9/14] bg-ink">
         <video src={`${reel.videoUrl}#t=0.1`} preload="metadata" muted playsInline className="w-full h-full object-cover pointer-events-none" />
         <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-black/30" />
         <span className="absolute inset-0 flex items-center justify-center">

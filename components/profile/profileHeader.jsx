@@ -231,7 +231,7 @@ export default function ProfileHeader({ profile: initialProfile, relation: initi
                     <MoreHorizontal size={18} />
                   </button>
                   {isMenuOpen && (
-                    <div className="absolute end-0 mt-2 w-48 nx-pop !rounded-xl2 py-1.5 z-30 overflow-hidden animate-pop-in origin-top-right">
+                    <div className="absolute end-0 mt-2 w-48 nx-pop !rounded-xl2 py-1.5 z-30 overflow-hidden animate-pop-in origin-top-right nx-mobile-sheet nx-mobile-sheet--menu">
                       <button
                         onClick={() => {
                           setIsMenuOpen(false);

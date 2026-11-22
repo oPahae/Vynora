@@ -24,7 +24,7 @@ export default function ProductCard({ product }) {
           </div>
         )}
         {sold && (
-          <span className="absolute top-2 start-2 rounded-full bg-slate-900/80 text-white text-xs font-semibold px-2.5 py-1">
+          <span className="absolute top-2 start-2 rounded-full bg-ink/80 text-white text-xs font-semibold px-2.5 py-1">
             {t("Vendu")}
           </span>
         )}

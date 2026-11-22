@@ -80,7 +80,7 @@ export default function AiAssistantPanel({ text, onApply }) {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 8, scale: 0.97 }}
             transition={{ duration: 0.15 }}
-            className="absolute start-0 bottom-full mb-2 w-80 max-w-[calc(100vw-3rem)] nx-pop overflow-hidden z-30"
+            className="absolute start-0 bottom-full mb-2 w-80 max-w-[calc(100vw-3rem)] nx-pop overflow-hidden z-30 nx-mobile-sheet"
           >
             <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100">
               <h3 className="font-display font-semibold text-slate-900 text-sm flex items-center gap-1.5">

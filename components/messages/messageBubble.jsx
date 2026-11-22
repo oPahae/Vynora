@@ -162,7 +162,7 @@ function MessageBubble({ message, isMine, isSeen, animateIn, onEdit, onDelete, o
           </button>
           <AnimatePresence>
           {isMenuOpen && (
-            <MenuPanel className="absolute bottom-6 end-0 w-44 nx-pop !rounded-2xl py-1 z-20 overflow-hidden origin-bottom-right">
+            <MenuPanel className="absolute bottom-6 end-0 w-44 nx-pop !rounded-2xl py-1 z-20 overflow-hidden origin-bottom-right nx-mobile-sheet nx-mobile-sheet--menu">
               {sharedMenuItems}
               {message.type === 'text' && (
                 <button
@@ -315,7 +315,7 @@ function MessageBubble({ message, isMine, isSeen, animateIn, onEdit, onDelete, o
           </button>
           <AnimatePresence>
           {isMenuOpen && (
-            <MenuPanel className="absolute bottom-6 start-0 w-44 nx-pop !rounded-2xl py-1 z-20 overflow-hidden origin-bottom-left">
+            <MenuPanel className="absolute bottom-6 start-0 w-44 nx-pop !rounded-2xl py-1 z-20 overflow-hidden origin-bottom-left nx-mobile-sheet nx-mobile-sheet--menu">
               {sharedMenuItems}
               <button
                 onClick={() => {

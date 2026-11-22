@@ -312,7 +312,7 @@ export default function ServerView({ guildId }) {
         {/* Salons */}
         <aside
           className={`absolute md:relative inset-0 md:inset-auto flex flex-col w-full md:w-60 md:shrink-0 min-h-0 bg-surface md:border-e border-slate-100 transition-[transform,visibility] duration-300 ease-out will-change-transform ${
-            panel === 'channels' ? 'translate-x-0' : '-translate-x-full max-md:invisible'
+            panel === 'channels' ? 'translate-x-0' : '-translate-x-full invisible md:visible'
           } md:translate-x-0`}
         >
           <ChannelSidebar
@@ -345,8 +345,8 @@ export default function ServerView({ guildId }) {
             panel === 'chat'
               ? 'translate-x-0'
               : panel === 'members'
-                ? '-translate-x-full max-md:invisible'
-                : 'translate-x-full max-md:invisible'
+                ? '-translate-x-full invisible md:visible'
+                : 'translate-x-full invisible md:visible'
           } md:translate-x-0`}
         >
           {activeChannel && activeChannel.type === 'text' && (
@@ -395,7 +395,7 @@ export default function ServerView({ guildId }) {
         {/* Membres : colonne fixe a partir de lg, panneau glissant avant */}
         <aside
           className={`absolute lg:relative inset-y-0 end-0 lg:inset-auto z-10 lg:z-auto flex flex-col w-full md:w-60 shrink-0 min-h-0 bg-surface border-s border-slate-100 md:shadow-card lg:shadow-none transition-[transform,visibility] duration-300 ease-out will-change-transform ${
-            panel === 'members' ? 'translate-x-0' : 'translate-x-full max-lg:invisible'
+            panel === 'members' ? 'translate-x-0' : 'translate-x-full invisible pointer-events-none lg:visible lg:pointer-events-auto'
           } lg:translate-x-0`}
         >
           <MemberList guildId={guildId} refreshKey={membersKey} onClose={() => setPanel('chat')} onSelectMember={setSelectedMember} />

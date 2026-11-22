@@ -37,7 +37,7 @@ export default function CollectionCard({ collection, href }) {
           <Icon size={16} />
         </span>
         {collection.kind === 'playlist' && collection.itemCount > 0 && (
-          <span className="absolute bottom-2.5 end-2.5 w-9 h-9 rounded-full bg-white text-slate-900 flex items-center justify-center opacity-0 group-hover:opacity-100 translate-y-1 group-hover:translate-y-0 transition-all">
+          <span className="absolute bottom-2.5 end-2.5 w-9 h-9 rounded-full bg-white text-ink flex items-center justify-center opacity-0 group-hover:opacity-100 translate-y-1 group-hover:translate-y-0 transition-all">
             <Play size={15} fill="currentColor" className="ms-0.5" />
           </span>
         )}

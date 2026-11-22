@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence, useMotionValue, useTransform, useSpring, useReducedMotion } from 'framer-motion';
+import { Heart } from 'lucide-react';
 import REACTIONS from '@/components/shared/reactionTypes';
 
 import { t } from '@/lib/i18n/runtime';
@@ -31,14 +32,10 @@ function DockItem({ mouseX, reaction, isActive, onPick, reduce }) {
         type="button"
         onClick={() => onPick(reaction.type)}
         aria-label={reaction.label}
-        className="w-10 h-10 flex items-center justify-center rounded-full active:scale-90 transition-transform duration-150"
-        style={{
-          color: reaction.color,
-          backgroundColor: `${reaction.color}${isActive ? '33' : '1A'}`,
-          boxShadow: isActive ? `inset 0 0 0 1.5px ${reaction.color}` : undefined
-        }}
+        className="w-11 h-11 flex items-center justify-center rounded-full active:scale-90 transition-transform duration-150"
+        style={{ boxShadow: isActive ? `0 0 0 2.5px ${reaction.color}` : undefined }}
       >
-        <Icon size={20} strokeWidth={2.25} />
+        <Icon size={38} />
       </button>
     </motion.div>
   );
@@ -176,7 +173,7 @@ export default function ReactionButton({ targetType, targetId, myReaction, onCha
   }
 
   const active = REACTIONS.find((reaction) => reaction.type === localReaction);
-  const ActiveIcon = active ? active.icon : REACTIONS[0].icon;
+  const ActiveIcon = active ? active.icon : Heart;
 
   return (
     <div
@@ -200,12 +197,8 @@ export default function ReactionButton({ targetType, targetId, myReaction, onCha
         style={{ color: active ? active.color : undefined }}
       >
         {active ? (
-          <span
-            key={active.type}
-            className="w-6 h-6 rounded-full flex items-center justify-center shrink-0 animate-pop-heart"
-            style={{ backgroundColor: active.color, boxShadow: `0 4px 12px -3px ${active.color}AA` }}
-          >
-            <ActiveIcon size={14} className="text-white" strokeWidth={2.5} />
+          <span key={active.type} className="flex shrink-0 animate-pop-heart" style={{ filter: `drop-shadow(0 3px 5px ${active.color}66)` }}>
+            <ActiveIcon size={24} />
           </span>
         ) : (
           <ActiveIcon size={18} strokeWidth={2} className="text-slate-500" />
@@ -225,7 +218,7 @@ export default function ReactionButton({ targetType, targetId, myReaction, onCha
             onPointerMove={(event) => mouseX.set(event.clientX)}
             onPointerLeave={() => mouseX.set(Infinity)}
             onPointerEnter={() => clearTimeout(closeTimer.current)}
-            className="absolute bottom-full start-0 mb-2.5 flex items-end gap-1 nx-glass rounded-full shadow-pop px-2.5 pt-2 pb-2 z-30 origin-bottom-left"
+            className="absolute bottom-full start-0 mb-2.5 flex items-end gap-0.5 nx-glass rounded-full shadow-pop px-2 pt-2 pb-2 z-30 origin-bottom-left max-w-[calc(100vw-1.5rem)]"
           >
             {REACTIONS.map((reaction) => (
               <DockItem

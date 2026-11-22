@@ -48,13 +48,7 @@ export default function PostStatsBar({ postId, reactionsByType, totalReactions, 
         {topReactions.length > 0 && (
           <span className="flex -space-x-1">
             {topReactions.map((reaction) => (
-              <span
-                key={reaction.type}
-                className="w-[22px] h-[22px] rounded-full flex items-center justify-center ring-2 ring-surface"
-                style={{ backgroundColor: reaction.color }}
-              >
-                <reaction.icon size={12} className="text-white" strokeWidth={2.75} />
-              </span>
+              <reaction.icon key={reaction.type} size={22} className="rounded-full ring-2 ring-surface" />
             ))}
           </span>
         )}
@@ -82,12 +76,7 @@ export default function PostStatsBar({ postId, reactionsByType, totalReactions, 
             renderBadge={(person) => {
               const reaction = REACTIONS.find((item) => item.type === person.type);
               return reaction ? (
-                <span
-                  className="w-7 h-7 rounded-full flex items-center justify-center"
-                  style={{ backgroundColor: reaction.color }}
-                >
-                  <reaction.icon size={15} className="text-white" strokeWidth={2.5} />
-                </span>
+                <reaction.icon size={28} />
               ) : null;
             }}
             onClose={() => setModal(null)}

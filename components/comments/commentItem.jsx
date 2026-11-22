@@ -189,12 +189,7 @@ function CommentItem({ postId, comment, onUpdated, onDeleted }) {
           />
           {comment.totalReactions > 0 && activeReaction && (
             <span className="flex items-center gap-1 text-slate-500">
-              <span
-                className="w-5 h-5 rounded-full flex items-center justify-center"
-                style={{ backgroundColor: activeReaction.color }}
-              >
-                <activeReaction.icon size={11} className="text-white" strokeWidth={3} />
-              </span>
+              <activeReaction.icon size={18} />
               {comment.totalReactions}
             </span>
           )}
@@ -205,7 +200,7 @@ function CommentItem({ postId, comment, onUpdated, onDeleted }) {
                 <MoreHorizontal size={14} />
               </button>
               {isMenuOpen && (
-                <div className="absolute end-0 mt-1 w-36 bg-surface rounded-xl2 shadow-card border border-slate-100 py-1 z-20 overflow-hidden">
+                <div className="absolute end-0 mt-1 w-36 bg-surface rounded-xl2 shadow-card border border-slate-100 py-1 z-20 overflow-hidden nx-mobile-sheet nx-mobile-sheet--menu">
 {isOwner && (                  <button
                     onClick={() => {
                       setIsMenuOpen(false);

@@ -221,7 +221,7 @@ function PostCard({ post, onUpdated, onDeleted, onShared, onUnpinned, onUnsaved 
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.94, y: -4, transition: { duration: 0.12 } }}
               transition={{ type: 'spring', stiffness: 520, damping: 32 }}
-              className="absolute end-0 mt-1 w-56 nx-pop rounded-2xl p-1.5 z-20 origin-top-right"
+              className="absolute end-0 mt-1 w-56 nx-pop rounded-2xl p-1.5 z-20 origin-top-right nx-mobile-sheet nx-mobile-sheet--menu"
               role="menu"
             >
               <button

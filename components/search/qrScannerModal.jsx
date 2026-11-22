@@ -119,7 +119,7 @@ export default function QrScannerModal({ onClose, onProfileId }) {
   return (
     <Modal title={t("Scanner un QR code")} onClose={onClose} maxWidth="max-w-sm">
       <div className="space-y-4">
-        <div className="relative aspect-square rounded-2xl overflow-hidden bg-slate-900">
+        <div className="relative aspect-square rounded-2xl overflow-hidden bg-ink">
           <video ref={videoRef} playsInline muted className="absolute inset-0 w-full h-full object-cover" />
           <canvas ref={canvasRef} className="hidden" />
           {status === 'starting' && (

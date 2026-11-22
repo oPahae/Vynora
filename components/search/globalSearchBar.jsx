@@ -9,7 +9,7 @@ import Avatar from '@/components/shared/avatar';
 import { t } from '@/lib/i18n/runtime';
 const DEBOUNCE_MS = 300;
 
-export default function GlobalSearchBar() {
+export default function GlobalSearchBar({ autoFocus = false }) {
   const router = useRouter();
   const [term, setTerm] = useState('');
   const [isOpen, setIsOpen] = useState(false);
@@ -119,6 +119,7 @@ export default function GlobalSearchBar() {
         <Search size={16} className="absolute start-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
         <input
           ref={inputRef}
+          autoFocus={autoFocus}
           type="text"
           value={term}
           onChange={(event) => setTerm(event.target.value)}

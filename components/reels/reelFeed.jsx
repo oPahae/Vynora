@@ -11,7 +11,7 @@ const MUTE_KEY = 'nexus:reels:muted';
 
 function ReelSkeleton() {
   return (
-    <div className="h-full w-full bg-slate-900 md:rounded-[28px] flex items-center justify-center">
+    <div className="h-full w-full bg-ink md:rounded-[28px] flex items-center justify-center">
       <Loader2 className="animate-spin text-white/60" size={30} />
     </div>
   );
@@ -257,7 +257,7 @@ export default function ReelFeed() {
               <button
                 key={item.key}
                 onClick={() => setTab(item.key)}
-                className="relative px-4 h-8 rounded-full text-sm font-semibold text-white/80 data-[active=true]:text-slate-900 transition-colors flex items-center gap-1.5"
+                className="relative px-4 h-8 rounded-full text-sm font-semibold text-white/80 data-[active=true]:text-ink transition-colors flex items-center gap-1.5"
                 data-active={tab === item.key}
               >
                 {tab === item.key && <motion.span layoutId="reel-tab" className="absolute inset-0 rounded-full bg-white" transition={{ type: 'spring', stiffness: 460, damping: 36 }} />}
@@ -270,7 +270,7 @@ export default function ReelFeed() {
 
         <button
           onClick={() => setComposerOpen(true)}
-          className="pointer-events-auto w-10 h-10 rounded-full bg-white text-slate-900 flex items-center justify-center shadow-soft active:scale-90 transition-transform"
+          className="pointer-events-auto w-10 h-10 rounded-full bg-white text-ink flex items-center justify-center shadow-soft active:scale-90 transition-transform"
           aria-label={t("Nouveau reel")}
           title={t("Nouveau reel")}
         >
@@ -301,7 +301,7 @@ export default function ReelFeed() {
             <button onClick={() => router.replace(router.asPath)} className="nx-btn-secondary"><RotateCcw size={16} /> {t("Reessayer")}</button>
           </div>
         ) : reels.length === 0 ? (
-          <div className="h-full snap-start flex flex-col items-center justify-center text-white gap-4 px-8 text-center bg-slate-900">
+          <div className="h-full snap-start flex flex-col items-center justify-center text-white gap-4 px-8 text-center bg-ink">
             <span className="w-16 h-16 rounded-3xl bg-white/10 flex items-center justify-center"><Clapperboard size={30} /></span>
             <div>
               <p className="font-display text-xl font-semibold">{mode === 'friends' ? t("Aucun reel de vos amis") : t("Aucun reel pour le moment")}</p>
@@ -331,7 +331,7 @@ export default function ReelFeed() {
               <div className="h-full snap-start"><ReelSkeleton /></div>
             )}
             {atEnd && (
-              <div data-index={reels.length} className="h-full snap-start flex flex-col items-center justify-center text-white gap-4 px-8 text-center bg-slate-900">
+              <div data-index={reels.length} className="h-full snap-start flex flex-col items-center justify-center text-white gap-4 px-8 text-center bg-ink">
                 <span className="w-16 h-16 rounded-3xl bg-white/10 flex items-center justify-center"><Sparkles size={28} /></span>
                 <p className="font-display text-xl font-semibold">{t("Vous avez tout vu pour le moment")}</p>
                 <p className="text-sm text-white/65">{t("Revenez plus tard pour de nouveaux reels.")}</p>

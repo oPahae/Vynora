@@ -90,9 +90,11 @@ html {
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
 }
+html.dark { background: rgb(var(--canvas)); }
 body {
   @apply text-slate-900 antialiased;
-  background: transparent;
+  background: rgb(var(--canvas));
+  min-height: 100vh;
   font-feature-settings: 'cv11', 'ss01';
   text-rendering: optimizeLegibility;
   -webkit-tap-highlight-color: transparent;
@@ -345,6 +347,33 @@ html.nx-theme-vt::view-transition-new(root) {
   pointer-events: auto; width: 16px; height: 16px; border-radius: 9999px;
   background: #3D63E8; border: 2px solid rgb(var(--surface));
   box-shadow: 0 1px 3px rgba(15, 23, 42, 0.35); cursor: pointer;
+}
+
+
+/* ---------- Popups ancres : sur mobile, elles deviennent une feuille en bas d'ecran ----------
+   Un popup `absolute` colle a un bouton deborde de l'ecran des que ce bouton est pres d'un
+   bord. Sous 768px, la classe nx-mobile-sheet le passe en position fixe, centre et borne a
+   l'ecran ; l'ombre geante sert de fond assombri (un clic a cote ferme toujours le popup). */
+@media (max-width: 767px) {
+  .nx-mobile-sheet {
+    position: fixed !important;
+    left: 0.75rem !important;
+    right: 0.75rem !important;
+    top: auto !important;
+    bottom: calc(0.75rem + env(safe-area-inset-bottom, 0px)) !important;
+    width: auto !important;
+    max-width: none !important;
+    margin: 0 !important;
+    max-height: 78dvh;
+    overflow-y: auto !important;
+    overscroll-behavior: contain;
+    z-index: 90 !important;
+    border-radius: 1.25rem !important;
+    transform-origin: bottom center !important;
+    background: rgb(var(--surface-raised)) !important;
+    box-shadow: 0 0 0 100vmax rgb(5 11 16 / 0.5) !important;
+  }
+  .nx-mobile-sheet--menu button { min-height: 46px; font-size: 0.9rem; }
 }
 
 /* ---------- Support RTL (arabe) ---------- */
