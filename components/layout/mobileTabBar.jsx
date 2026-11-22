@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
-import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
+import { AnimatePresence, motion, useDragControls, useReducedMotion } from 'framer-motion';
 import { Home, Users, MessageCircle, Bell, Settings, LogOut, ChevronRight } from 'lucide-react';
 import { useAuth } from '@/lib/authContext';
 import { useUnreadMessagesCount, useUnreadNotificationsCount, useFriendRequestsCount } from '@/lib/useUnreadCount';
@@ -34,6 +34,9 @@ function Badge({ count }) {
 // fermable par glissement vers le bas.
 function MenuSheet({ open, onClose }) {
   const { user, logout } = useAuth();
+  // Le glissement ne part que de la poignee : sinon il capte le defilement vertical
+  // et la fin de la feuille (Statistiques, theme...) restait inaccessible.
+  const dragControls = useDragControls();
   // Les destinations deja presentes dans le dock ne sont pas repetees.
   const extra = getNavGroups(user?.role === 'admin', Boolean(user?.isPremium))
     .flat()
@@ -69,16 +72,22 @@ function MenuSheet({ open, onClose }) {
             exit={{ y: '100%' }}
             transition={{ type: 'spring', damping: 36, stiffness: 380 }}
             drag="y"
+            dragControls={dragControls}
+            dragListener={false}
             dragConstraints={{ top: 0, bottom: 0 }}
             dragElastic={{ top: 0, bottom: 0.5 }}
             onDragEnd={(_, info) => {
               if (info.offset.y > 90 || info.velocity.y > 500) onClose();
             }}
-            className="fixed inset-x-0 bottom-0 z-50 nx-pop rounded-b-none rounded-t-[30px] pb-[max(1rem,env(safe-area-inset-bottom))] max-h-[88dvh] overflow-y-auto"
+            className="fixed inset-x-0 bottom-0 z-50 nx-pop rounded-b-none rounded-t-[30px] max-h-[88dvh] flex flex-col overflow-hidden"
           >
-            <div className="flex justify-center pt-2.5 pb-1">
+            <div
+              className="flex justify-center pt-2.5 pb-2 shrink-0 cursor-grab touch-none"
+              onPointerDown={(event) => dragControls.start(event)}
+            >
               <span className="w-10 h-1.5 rounded-full bg-slate-300/80" />
             </div>
+            <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain pb-[max(1.25rem,env(safe-area-inset-bottom))]">
 
             <motion.div variants={sheetList} initial="hidden" animate="show" className="px-4 pt-2 space-y-4">
               {user && (
@@ -141,6 +150,7 @@ function MenuSheet({ open, onClose }) {
                 </button>
               </motion.div>
             </motion.div>
+            </div>
           </motion.div>
         </>
       )}

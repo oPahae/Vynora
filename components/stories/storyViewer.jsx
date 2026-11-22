@@ -341,12 +341,7 @@ export default function StoryViewer({ groups, initialGroupIndex, onClose, onDele
             renderBadge={(person) => {
               const reaction = REACTIONS.find((item) => item.type === person.reactionType);
               return reaction ? (
-                <span
-                  className="w-7 h-7 rounded-full flex items-center justify-center"
-                  style={{ backgroundColor: reaction.color }}
-                >
-                  <reaction.icon size={15} className="text-white" strokeWidth={2.5} />
-                </span>
+                <reaction.icon size={28} />
               ) : null;
             }}
             onClose={closeViewers}

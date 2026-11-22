@@ -58,7 +58,7 @@ export default function VisibilityPicker({ value, onChange, selectedUserIds, onS
         </button>
 
         {isOpen && (
-          <div className="absolute start-0 mt-2 w-72 max-w-[calc(100vw-3rem)] nx-pop rounded-2xl p-1.5 z-30 animate-pop-in">
+          <div className="absolute start-0 mt-2 w-72 max-w-[calc(100vw-3rem)] nx-pop rounded-2xl p-1.5 z-30 animate-pop-in nx-mobile-sheet">
             {OPTIONS.map((option) => (
               <button
                 key={option.value}

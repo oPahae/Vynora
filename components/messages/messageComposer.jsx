@@ -194,7 +194,7 @@ export default function MessageComposer({ conversationId, onSent, files, onFiles
   const hasAttachments = files.length > 0;
 
   return (
-    <form onSubmit={handleSubmit} className="border-t border-slate-100 p-3">
+    <form onSubmit={handleSubmit} className="shrink-0 border-t border-slate-100 px-3 pt-2.5 pb-[max(0.625rem,env(safe-area-inset-bottom))] md:p-3">
       {replyingTo && (
         <div className="flex items-center gap-2 bg-brand-50 border-s-2 border-brand-400 rounded-lg px-3 py-2 mb-2">
           <CornerUpLeft size={14} className="text-brand-500 shrink-0" />

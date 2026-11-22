@@ -229,7 +229,7 @@ export default function CollectionDetailPage() {
               {reelItems.length > 0 && (
                 <Link
                   href={`/reels?collection=${collection.id}&id=${reelItems[0].reel.id}`}
-                  className="inline-flex items-center gap-2 h-10 px-4 rounded-xl2 bg-white text-slate-900 text-sm font-semibold hover:bg-white/90 active:scale-[0.98] transition-all"
+                  className="inline-flex items-center gap-2 h-10 px-4 rounded-xl2 bg-white text-ink text-sm font-semibold hover:bg-white/90 active:scale-[0.98] transition-all"
                 >
                   <Play size={15} fill="currentColor" /> {t("Lire les reels")}
                 </Link>

@@ -1,8 +1,7 @@
 import { memo } from 'react';
 import Link from 'next/link';
-import { UserPlus, UserCheck, MessageCircle, Share2, AtSign, Radio, Users, UserMinus, Shield, ShieldAlert, MapPinned, Crown } from 'lucide-react';
+import { Heart, UserPlus, UserCheck, MessageCircle, Share2, AtSign, Radio, Users, UserMinus, Shield, ShieldAlert, MapPinned, Crown } from 'lucide-react';
 import Avatar from '@/components/shared/avatar';
-import REACTIONS from '@/components/shared/reactionTypes';
 import { getNotificationText, getNotificationHref } from '@/components/notifications/notificationMeta';
 import { formatRelativeTime } from '@/lib/dateUtils';
 
@@ -22,7 +21,7 @@ const TYPE_ICONS = {
 
 function getIconMeta(notification) {
   if (notification.type === 'like') {
-    return { icon: REACTIONS[0].icon, color: '#ef4444' };
+    return { icon: Heart, color: '#F0305A' };
   }
   return TYPE_ICONS[notification.type] || { icon: MessageCircle, color: '#64748b' };
 }

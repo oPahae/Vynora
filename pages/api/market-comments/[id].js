@@ -38,8 +38,20 @@ export default async function handler(req, res) {
       if (!isAuthor && comment.sellerId !== payload.id && !payload.isAdmin) {
         return res.status(403).json({ success: false, message: 'Action non autorisee' });
       }
+      // Supprimer un commentaire supprime aussi ses reponses ; `removed` permet a l'interface
+      // de corriger le compteur de commentaires de l'annonce.
+      let removed = 1;
+      try {
+        const replies = await query(
+          'UPDATE marketComment SET deletedAt = NOW() WHERE parentId = ? AND deletedAt IS NULL',
+          [commentId]
+        );
+        removed += Number(replies?.affectedRows) || 0;
+      } catch (error) {
+        // colonne parentId absente : pas de reponses a supprimer.
+      }
       await query('UPDATE marketComment SET deletedAt = NOW() WHERE id = ?', [commentId]);
-      return res.status(200).json({ success: true });
+      return res.status(200).json({ success: true, removed });
     }
 
     res.setHeader('Allow', ['PUT', 'DELETE']);

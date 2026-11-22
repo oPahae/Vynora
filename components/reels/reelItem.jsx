@@ -439,7 +439,7 @@ function ReelItem({ reel, active, near, muted, autoMuted, onToggleMute, onForceM
           className={`absolute inset-0 w-full h-full ${landscape ? 'object-contain' : 'object-cover'}`}
         />
       ) : (
-        <div className="absolute inset-0 bg-slate-900 flex items-center justify-center text-white/50 text-sm px-8 text-center">
+        <div className="absolute inset-0 bg-ink flex items-center justify-center text-white/50 text-sm px-8 text-center">
           {videoError ? t("Impossible de lire cette video.") : <Loader2 className="animate-spin" />}
         </div>
       )}
@@ -488,7 +488,7 @@ function ReelItem({ reel, active, near, muted, autoMuted, onToggleMute, onForceM
           initial={{ opacity: 0, y: -6 }}
           animate={{ opacity: 1, y: 0 }}
           onClick={(event) => { event.stopPropagation(); onToggleMute(); }}
-          className="absolute top-16 start-1/2 -translate-x-1/2 z-20 flex items-center gap-2 bg-white text-slate-900 text-xs font-semibold rounded-full px-3.5 py-2 shadow-pop"
+          className="absolute top-16 start-1/2 -translate-x-1/2 z-20 flex items-center gap-2 bg-white text-ink text-xs font-semibold rounded-full px-3.5 py-2 shadow-pop"
         >
           <VolumeX size={14} /> {t("Appuyez pour activer le son")}
         </motion.button>
@@ -527,9 +527,9 @@ function ReelItem({ reel, active, near, muted, autoMuted, onToggleMute, onForceM
                     title={reaction.label}
                     aria-label={reaction.label}
                     className="w-10 h-10 rounded-full flex items-center justify-center hover:scale-125 active:scale-95 transition-transform"
-                    style={{ color: reaction.color, backgroundColor: `${reaction.color}${reel.myReaction === reaction.type ? '33' : '14'}` }}
+                    style={{ boxShadow: reel.myReaction === reaction.type ? `0 0 0 2px ${reaction.color}` : undefined }}
                   >
-                    <reaction.icon size={20} strokeWidth={2.25} />
+                    <reaction.icon size={34} />
                   </button>
                 ))}
               </motion.div>
@@ -555,7 +555,7 @@ function ReelItem({ reel, active, near, muted, autoMuted, onToggleMute, onForceM
               }}
             >
               {activeReaction && reel.myReaction !== 'like' ? (
-                <activeReaction.icon size={24} strokeWidth={2.2} style={{ color: activeReaction.color }} />
+                <activeReaction.icon size={30} />
               ) : (
                 <Heart size={25} strokeWidth={2} fill={reel.myReaction ? '#fb7185' : 'none'} color={reel.myReaction ? '#fb7185' : 'currentColor'} />
               )}

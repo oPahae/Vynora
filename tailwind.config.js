@@ -16,6 +16,11 @@ module.exports = {
   theme: {
     screens: {
       'max-xs': { max: '419px' },
+      // Variantes "max-*" explicites : Tailwind ne les genere plus des qu'un ecran
+      // personnalise (max-xs) est declare, ce qui rendait max-md:/max-lg: inoperants.
+      'max-sm': { max: '639px' },
+      'max-md': { max: '767px' },
+      'max-lg': { max: '1023px' },
       xs: '420px',
       sm: '640px',
       md: '768px',
@@ -45,6 +50,8 @@ module.exports = {
           400: v('slate-400'), 500: v('slate-500'), 600: v('slate-600'), 700: v('slate-700'),
           800: v('slate-800'), 900: v('slate-900')
         },
+        // Fond de page (suit le theme) : utilise par la barre du haut (bg-canvas).
+        canvas: v('canvas'),
         ink: '#050B10',
         surface: {
           DEFAULT: v('surface'),

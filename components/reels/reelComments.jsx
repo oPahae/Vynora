@@ -148,9 +148,7 @@ function CommentRow({ comment, reel, onChanged, onDeleted, onReply, isReply = fa
           {comment.totalReactions > 0 && (
             <span className="flex items-center gap-1 text-slate-500 -ms-1">
               {activeReaction && (
-                <span className="w-4 h-4 rounded-full flex items-center justify-center" style={{ backgroundColor: activeReaction.color }}>
-                  <activeReaction.icon size={9} className="text-white" strokeWidth={3} />
-                </span>
+                <activeReaction.icon size={16} />
               )}
               {comment.totalReactions}
             </span>
@@ -161,7 +159,7 @@ function CommentRow({ comment, reel, onChanged, onDeleted, onReply, isReply = fa
               <MoreHorizontal size={14} />
             </button>
             {menuOpen && (
-              <div className="absolute start-0 bottom-full mb-1 w-40 nx-pop !rounded-xl2 py-1 z-30 overflow-hidden">
+              <div className="absolute start-0 bottom-full mb-1 w-40 nx-pop !rounded-xl2 py-1 z-30 overflow-hidden nx-mobile-sheet nx-mobile-sheet--menu">
                 {isAuthor && (
                   <button onClick={() => { setMenuOpen(false); setEditing(true); }} className="w-full flex items-center gap-2 px-3 py-2 text-xs text-slate-700 hover:bg-slate-50">
                     <Pencil size={12} /> {t("Modifier")}

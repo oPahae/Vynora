@@ -187,7 +187,7 @@ export default function CommentComposer({ postId, parentId, onCreated, placehold
                 onChange={handleFileChange}
               />
               {isAudioMenuOpen && (
-                <div className="absolute top-full end-0 mt-2 w-48 max-w-[80vw] bg-surface rounded-xl2 shadow-card border border-slate-100 py-1.5 z-40">
+                <div className="absolute top-full end-0 mt-2 w-48 max-w-[80vw] bg-surface rounded-xl2 shadow-card border border-slate-100 py-1.5 z-40 nx-mobile-sheet nx-mobile-sheet--menu">
                   <button
                     type="button"
                     onClick={startRecording}

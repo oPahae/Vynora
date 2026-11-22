@@ -68,7 +68,7 @@ export default function PremiumPage() {
               <p className="text-white/90 mt-2 max-w-lg">{t("Badge verifie, visiteurs de votre profil et boost de vos publications.")}</p>
 
               {status.active ? (
-                <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="mt-5 inline-flex items-center gap-2 bg-white text-slate-900 rounded-2xl px-4 py-2.5 font-semibold text-sm">
+                <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="mt-5 inline-flex items-center gap-2 bg-white text-ink rounded-2xl px-4 py-2.5 font-semibold text-sm">
                   <Check size={16} className="text-emerald-500" strokeWidth={3} />
                   {status.lifetime ? t("Premium actif a vie") : t("Premium actif jusqu'au {date}", { date: formatDate(String(status.until).replace(' ', 'T'), { day: 'numeric', month: 'long', year: 'numeric' }) })}
                 </motion.div>

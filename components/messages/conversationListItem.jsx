@@ -110,7 +110,7 @@ function ConversationListItem({ conversation, status, onArchive, onDelete }) {
         )}
       </Link>
 
-      <div className="absolute top-1/2 -translate-y-1/2 end-2" ref={menuRef}>
+      <div className={`absolute top-1/2 -translate-y-1/2 end-2 ${isMenuOpen ? 'z-40' : ''}`} ref={menuRef}>
         <button
           type="button"
           onClick={(event) => {
@@ -126,7 +126,7 @@ function ConversationListItem({ conversation, status, onArchive, onDelete }) {
         </button>
 
         {isMenuOpen && (
-          <div className="absolute end-0 top-full mt-1 w-52 nx-pop !rounded-2xl py-1.5 z-30 overflow-hidden">
+          <div className="absolute end-0 top-full mt-1 w-52 nx-pop bg-surface !rounded-2xl py-1.5 z-30 overflow-hidden nx-mobile-sheet nx-mobile-sheet--menu">
             <button
               type="button"
               onClick={handleArchiveClick}

@@ -1090,12 +1090,15 @@ CREATE TABLE IF NOT EXISTS marketComment (
   id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   productId INT UNSIGNED NOT NULL,
   userId INT UNSIGNED NOT NULL,
+  parentId INT UNSIGNED DEFAULT NULL,
   content VARCHAR(1000) NOT NULL,
   isEdited TINYINT(1) NOT NULL DEFAULT 0,
   createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   deletedAt DATETIME DEFAULT NULL,
   KEY idx_marketComment_product (productId, createdAt),
   KEY idx_marketComment_user (userId),
+  KEY idx_marketComment_parent (parentId, deletedAt),
   CONSTRAINT fk_marketComment_product FOREIGN KEY (productId) REFERENCES marketProduct(id) ON DELETE CASCADE,
-  CONSTRAINT fk_marketComment_user FOREIGN KEY (userId) REFERENCES user(id) ON DELETE CASCADE
+  CONSTRAINT fk_marketComment_user FOREIGN KEY (userId) REFERENCES user(id) ON DELETE CASCADE,
+  CONSTRAINT fk_marketComment_parent FOREIGN KEY (parentId) REFERENCES marketComment(id) ON DELETE CASCADE
 ) ENGINE=InnoDB;

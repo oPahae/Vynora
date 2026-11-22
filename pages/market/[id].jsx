@@ -148,7 +148,7 @@ export default function ProductPage({ initialProduct, isPublicView, seo }) {
                 <img src={current.url} alt={product.title} className={`max-w-full max-h-full object-contain ${sold ? 'opacity-60' : ''}`} />
               )}
               {sold && (
-                <span className="absolute top-3 start-3 rounded-full bg-slate-900/85 text-white text-sm font-semibold px-3 py-1">{t("Vendu")}</span>
+                <span className="absolute top-3 start-3 rounded-full bg-ink/85 text-white text-sm font-semibold px-3 py-1">{t("Vendu")}</span>
               )}
             </div>
             {product.media.length > 1 && (

@@ -26,7 +26,8 @@ function writeCachedTheme(value) {
 
 export function ThemeProvider({ children }) {
   const { user, updateUser } = useAuth();
-  const [cachedTheme, setCachedTheme] = useState(null);
+  // undefined = pas encore lu (premier rendu) ; null = aucun theme memorise.
+  const [cachedTheme, setCachedTheme] = useState(undefined);
   const theme = user?.theme || cachedTheme || 'light';
   const lastPointer = useRef(null);
 
@@ -41,8 +42,11 @@ export function ThemeProvider({ children }) {
   }, []);
 
   useEffect(() => {
+    // Tant que ni le profil ni le cache local ne sont connus, on laisse la classe posee
+    // par _document.jsx : retirer "dark" ici faisait clignoter des pages entieres en blanc.
+    if (cachedTheme === undefined && !user?.theme) return;
     document.documentElement.classList.toggle('dark', theme === 'dark');
-  }, [theme]);
+  }, [theme, cachedTheme, user?.theme]);
 
   useEffect(() => {
     if (user?.theme) writeCachedTheme(user.theme);
