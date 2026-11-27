@@ -9,6 +9,7 @@ import AccountCenter from '@/components/auth/accountCenter';
 import GoogleAuth, { googleErrorMessage } from '@/components/auth/googleAuth';
 import SaveLoginPrompt from '@/components/auth/saveLoginPrompt';
 import { useAuth } from '@/lib/authContext';
+import { getEmailError, getPasswordError } from '@/lib/validators';
 
 import { t } from '@/lib/i18n/runtime';
 const RECAPTCHA_SITE_KEY = process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY;
@@ -67,6 +68,12 @@ export default function LoginForm() {
       // en cas d'erreur on poursuit simplement la connexion
     }
     goNext();
+  }
+
+  // Verification au blur : message rouge sous l'input (email : format, mot de passe : taille).
+  function handleBlur(field) {
+    const key = field === 'email' ? getEmailError(form.email) : getPasswordError(form.password);
+    setErrors((prev) => ({ ...prev, [field]: key ? t(key) : undefined }));
   }
 
   function handleChange(field, value) {
@@ -184,6 +191,7 @@ export default function LoginForm() {
         value={form.email}
         error={errors.email}
         onChange={(e) => handleChange('email', e.target.value)}
+        onBlur={() => handleBlur('email')}
         autoComplete="email"
       />
 
@@ -195,6 +203,7 @@ export default function LoginForm() {
           value={form.password}
           error={errors.password}
           onChange={(e) => handleChange('password', e.target.value)}
+          onBlur={() => handleBlur('password')}
           autoComplete="current-password"
         />
         <button
