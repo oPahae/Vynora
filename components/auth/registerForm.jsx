@@ -7,6 +7,7 @@ import FormField from '@/components/auth/formField';
 import PasswordStrengthMeter from '@/components/auth/passwordStrengthMeter';
 import GoogleAuth, { googleErrorMessage } from '@/components/auth/googleAuth';
 import { useAuth } from '@/lib/authContext';
+import { getEmailError, getPasswordError } from '@/lib/validators';
 
 import { t, tRich } from '@/lib/i18n/runtime';
 export default function RegisterForm() {
@@ -27,6 +28,12 @@ export default function RegisterForm() {
     gender: '',
     birthDate: ''
   });
+
+  // Verification au blur : message rouge sous l'input (email : format, mot de passe : taille).
+  function handleBlur(field) {
+    const key = field === 'email' ? getEmailError(form.email) : getPasswordError(form.password);
+    setErrors((prev) => ({ ...prev, [field]: key ? t(key) : undefined }));
+  }
 
   function handleChange(field, value) {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -236,6 +243,7 @@ export default function RegisterForm() {
         value={form.email}
         error={errors.email}
         onChange={(e) => handleChange('email', e.target.value)}
+        onBlur={() => handleBlur('email')}
         autoComplete="email"
       />
 
@@ -247,6 +255,7 @@ export default function RegisterForm() {
           value={form.password}
           error={errors.password}
           onChange={(e) => handleChange('password', e.target.value)}
+          onBlur={() => handleBlur('password')}
           autoComplete="new-password"
         />
         <button
