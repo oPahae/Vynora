@@ -3,8 +3,9 @@ import { motion } from 'framer-motion';
 import { X, LoaderCircle } from 'lucide-react';
 import SOCIAL_LINKS from '@/components/shared/socialLinksConfig';
 import ProfileMusicEditor from '@/components/profile/profileMusicEditor';
+import LocationField from '@/components/shared/locationField';
 
-import { t } from '@/lib/i18n/runtime';
+import { t, td } from '@/lib/i18n/runtime';
 const FIELDS = [
   { name: 'firstName', get label() { return t("Prenom"); } },
   { name: 'lastName', get label() { return t("Nom"); } },
@@ -25,8 +26,12 @@ export default function EditProfileModal({ profile, onClose, onSaved, onProfileP
     country: profile.country || '',
     phone: profile.phone || '',
     gender: profile.gender || '',
-    birthDate: profile.birthDate ? profile.birthDate.slice(0, 10) : ''
+    birthDate: profile.birthDate ? profile.birthDate.slice(0, 10) : '',
+    location: profile.location || '',
+    latitude: profile.latitude ?? null,
+    longitude: profile.longitude ?? null
   });
+  const [locationError, setLocationError] = useState('');
   const [socialLinks, setSocialLinks] = useState({ ...(profile.socialLinks || {}) });
   const [musicState, setMusicState] = useState({
     musicUrl: profile.musicUrl || null,
@@ -49,6 +54,7 @@ export default function EditProfileModal({ profile, onClose, onSaved, onProfileP
     event.preventDefault();
     setIsSubmitting(true);
     setError('');
+    setLocationError('');
 
     try {
       const response = await fetch('/api/users/me', {
@@ -59,7 +65,8 @@ export default function EditProfileModal({ profile, onClose, onSaved, onProfileP
       const data = await response.json();
 
       if (!data.success) {
-        setError(data.message || t("Erreur lors de la mise a jour"));
+        if (data.errors?.location) setLocationError(td(data.errors.location));
+        else setError(td(data.message) || t("Erreur lors de la mise a jour"));
         return;
       }
 
@@ -112,6 +119,22 @@ export default function EditProfileModal({ profile, onClose, onSaved, onProfileP
                 />
               </div>
             ))}
+          </div>
+
+          <div>
+            <label className="text-xs font-medium text-slate-500 mb-1 block">{t("Localisation (optionnel)")}</label>
+            <LocationField
+              variant="compact"
+              value={{ location: form.location, latitude: form.latitude, longitude: form.longitude }}
+              onChange={(next) => {
+                setForm((prev) => ({ ...prev, ...next }));
+                setLocationError('');
+              }}
+              error={locationError}
+            />
+            <p className="text-xs text-slate-400 mt-1.5">
+              {t("Elle sert uniquement a detecter les personnes proches de vous. Les autres voient seulement une distance approximative. Videz ce champ pour ne plus apparaitre dans les personnes proches.")}
+            </p>
           </div>
 
           <div>

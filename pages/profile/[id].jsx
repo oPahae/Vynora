@@ -13,6 +13,7 @@ import PostList from '@/components/posts/postList';
 import PinnedPostsSection from '@/components/profile/pinnedPostsSection';
 import { ProfileReelsSection, ProfileCollectionsCard } from '@/components/profile/profileReelsAndCollections';
 import { pageTitle } from '@/lib/constants';
+import { getFireInfo, publicFire, selfFire } from '@/lib/fire';
 
 import BlockedProfileNotice from '@/components/profile/blockedProfileNotice';
 import PrivateProfileNotice from '@/components/profile/privateProfileNotice';
@@ -114,6 +115,16 @@ export async function getServerSideProps(context) {
     musicEndSec: rows[0].musicEndSec !== null ? Number(rows[0].musicEndSec) : null
   };
   const isSelf = payload.id === targetId;
+  // Niveau de fire (boost) : le detail du calcul n'est donne qu'au proprietaire du profil.
+  const fire = await getFireInfo(targetId);
+  profile.fire = isSelf ? selfFire(fire) : publicFire(fire);
+  // Localisation (gens proches) : reservee au proprietaire, jamais envoyee aux autres membres.
+  if (isSelf) {
+    const [mine] = await query('SELECT location, latitude, longitude FROM user WHERE id = ? LIMIT 1', [targetId]);
+    profile.location = mine?.location || '';
+    profile.latitude = mine?.latitude !== null && mine?.latitude !== undefined ? Number(mine.latitude) : null;
+    profile.longitude = mine?.longitude !== null && mine?.longitude !== undefined ? Number(mine.longitude) : null;
+  }
   const { blockedByMe, blockingMe } = await getBlockStatus(payload.id, targetId);
   const status = await getRelationStatus(payload.id, targetId);
   const isPrivateLocked = !isSelf && profile.isPrivate && status !== 'friends' && !blockedByMe && !blockingMe;

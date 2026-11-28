@@ -4,6 +4,8 @@ import { validateRegisterInput } from '@/lib/validators';
 import { getRequestLocale } from '@/lib/i18n/server';
 import { sendMail, buildEmailVerificationEmail } from '@/lib/mailer';
 import { rateLimit, getClientIp } from '@/lib/rateLimit';
+import { resolveLocationInput } from '@/lib/geo';
+import { TERMS_VERSION } from '@/lib/constants';
 import {
   VERIFICATION_CODE_TTL_MINUTES,
   VERIFICATION_RESEND_COOLDOWN_SECONDS,
@@ -34,6 +36,18 @@ export default async function handler(req, res) {
   }
 
   try {
+    // Localisation facultative : champ vide = pas de localisation. Un libelle sans
+    // coordonnees est resolu cote serveur ; s'il est introuvable, on previent l'utilisateur.
+    const locale = getRequestLocale(req);
+    const place = await resolveLocationInput(req.body || {}, locale);
+    if (!place.ok) {
+      return res.status(422).json({
+        success: false,
+        message: 'Donnees invalides',
+        errors: { location: place.error }
+      });
+    }
+
     const existing = await query('SELECT id FROM user WHERE email = ? LIMIT 1', [data.email]);
     if (existing.length > 0) {
       return res.status(409).json({
@@ -60,7 +74,11 @@ export default async function handler(req, res) {
         lastName: data.lastName,
         passwordHash,
         gender: data.gender,
-        birthDate: data.birthDate
+        birthDate: data.birthDate,
+        location: place.value.location,
+        latitude: place.value.latitude,
+        longitude: place.value.longitude,
+        termsVersion: TERMS_VERSION
       }
     });
 

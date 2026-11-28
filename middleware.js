@@ -6,7 +6,8 @@ const AUTH_COOKIE_NAME = 'authToken';
 // Pages consultables sans compte : une publication partagee a l'exterieur
 // (/post/123) ou une annonce du Market (/market/123). La page elle-meme verifie
 // que le contenu est bien public (sinon redirection vers la connexion).
-const PUBLIC_PAGE_PATTERNS = [/^\/post\/\d+$/, /^\/market\/\d+$/];
+// /terms : termes et conditions, lisibles par tous (aussi depuis la page d'inscription).
+const PUBLIC_PAGE_PATTERNS = [/^\/post\/\d+$/, /^\/market\/\d+$/, /^\/terms$/];
 
 async function isTokenValid(token) {
   if (!token) return false;
