@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import Head from 'next/head';
-import { Search, ShieldOff, Loader2, Users, ScanLine } from 'lucide-react';
+import Link from 'next/link';
+import { Search, ShieldOff, Loader2, Users, ScanLine, MapPin } from 'lucide-react';
 import { AnimatePresence } from 'framer-motion';
 import QrScannerModal from '@/components/search/qrScannerModal';
 import AppLayout from '@/components/layout/appLayout';
@@ -17,6 +18,7 @@ const TABS = [
   { key: 'requests', get label() { return t("Invitations recues"); } },
   { key: 'sent', get label() { return t("Invitations envoyees"); } },
   { key: 'suggestions', get label() { return t("Suggestions"); } },
+  { key: 'nearby', get label() { return t("Proches de moi"); } },
   { key: 'blocked', get label() { return t("Bloques"); } }
 ];
 
@@ -25,8 +27,17 @@ const ENDPOINTS = {
   requests: '/api/friends/requests',
   sent: '/api/friends/sent',
   suggestions: '/api/friends/suggestions',
+  nearby: '/api/friends/nearby',
   blocked: '/api/block'
 };
+
+// Rayons proposes dans l'onglet "Proches de moi" (km).
+const NEARBY_RADII = [10, 50, 200];
+
+// Distance approximative renvoyee par le serveur (0 = moins de 1 km).
+function distanceLabel(km) {
+  return km < 1 ? t("A moins de 1 km") : t("A environ {km} km", { km });
+}
 
 // Normalise une chaine (accents/casse) pour un filtrage local tolerant.
 function normalize(text) {
@@ -51,14 +62,18 @@ export default function FriendsPage() {
   const [listFilter, setListFilter] = useState('');
   const [isScannerOpen, setIsScannerOpen] = useState(false);
   const [scanResult, setScanResult] = useState(null); // { loading, user } apres un scan
+  const [nearbyRadius, setNearbyRadius] = useState(50);
+  const [needsLocation, setNeedsLocation] = useState(false);
 
   const loadTab = useCallback(async (tab) => {
     setIsLoading(true);
     try {
-      const response = await fetch(ENDPOINTS[tab]);
+      const url = tab === 'nearby' ? `${ENDPOINTS.nearby}?radius=${nearbyRadius}` : ENDPOINTS[tab];
+      const response = await fetch(url);
       const data = await response.json();
       const loadedItems = data.success ? data.items : [];
       setItems(loadedItems);
+      setNeedsLocation(tab === 'nearby' && Boolean(data.success && data.needsLocation));
 
       if (tab === 'friends' && loadedItems.length > 0) {
         const idsParam = loadedItems.map((item) => item.id).join(',');
@@ -71,7 +86,7 @@ export default function FriendsPage() {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [nearbyRadius]);
 
   useEffect(() => {
     loadTab(activeTab);
@@ -216,6 +231,28 @@ export default function FriendsPage() {
               />
             </div>
 
+            {activeTab === 'nearby' && !needsLocation && (
+              <div className="mb-4 flex flex-wrap items-center gap-2">
+                <span className="flex items-center gap-1.5 text-sm text-slate-500">
+                  <MapPin size={15} /> {t("Dans un rayon de")}
+                </span>
+                {NEARBY_RADII.map((radius) => (
+                  <button
+                    key={radius}
+                    type="button"
+                    onClick={() => setNearbyRadius(radius)}
+                    className={`rounded-full border px-3 py-1 text-xs font-medium transition-all ${
+                      nearbyRadius === radius
+                        ? 'border-brand-500 bg-brand-50 text-brand-700'
+                        : 'border-slate-200 bg-surface text-slate-500 hover:border-slate-300'
+                    }`}
+                  >
+                    {t("{km} km", { km: radius })}
+                  </button>
+                ))}
+              </div>
+            )}
+
             {!isLoading && items.length > 0 && (
               <div className="flex items-center gap-2 nx-card !rounded-xl2 px-3 py-2 mb-4 max-w-xs focus-within:ring-4 focus-within:ring-brand-500/10 focus-within:border-brand-300">
                 <Search size={15} className="text-slate-400 shrink-0" />
@@ -233,6 +270,21 @@ export default function FriendsPage() {
               <div className="flex justify-center py-16">
                 <Loader2 size={24} className="animate-spin text-brand-400" />
               </div>
+            ) : activeTab === 'nearby' && needsLocation ? (
+              <EmptyState
+                icon={MapPin}
+                title={t("Renseignez votre localisation pour voir les personnes proches de vous.")}
+                action={
+                  <Link href="/profile" className="nx-btn-primary">
+                    {t("Modifier le profil")}
+                  </Link>
+                }
+              />
+            ) : activeTab === 'nearby' && items.length === 0 ? (
+              <EmptyState
+                icon={MapPin}
+                title={t("Personne a proximite pour le moment. Essayez un rayon plus large.")}
+              />
             ) : items.length === 0 ? (
               <EmptyState
                 icon={Users}
@@ -255,7 +307,14 @@ export default function FriendsPage() {
                     user={item}
                     status={activeTab === 'friends' ? statuses[item.id] : null}
                     subtitle={
-                      activeTab === 'suggestions' && item.mutualFriendsCount > 0
+                      activeTab === 'nearby'
+                        ? [
+                            distanceLabel(item.distanceKm),
+                            item.mutualFriendsCount > 0 ? t("{mutualFriendsCount} amis en commun", { mutualFriendsCount: item.mutualFriendsCount }) : null
+                          ]
+                            .filter(Boolean)
+                            .join(' · ')
+                        : activeTab === 'suggestions' && item.mutualFriendsCount > 0
                         ? t("{mutualFriendsCount} amis en commun", { mutualFriendsCount: item.mutualFriendsCount })
                         : null
                     }

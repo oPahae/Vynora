@@ -30,6 +30,8 @@ export function ThemeProvider({ children }) {
   const [cachedTheme, setCachedTheme] = useState(undefined);
   const theme = user?.theme || cachedTheme || 'light';
   const lastPointer = useRef(null);
+  // Theme choisi par un visiteur non connecte (pages login / register) : applique au compte ensuite.
+  const loggedOutChoice = useRef(null);
 
   useEffect(() => {
     setCachedTheme(readCachedTheme());
@@ -58,6 +60,9 @@ export function ThemeProvider({ children }) {
       const apply = () => {
         root.classList.toggle('dark', nextTheme === 'dark');
         writeCachedTheme(nextTheme);
+        // Sans compte connecte, `theme` vient du cache local : il faut aussi le mettre a jour,
+        // sinon le bouton ne peut plus rebasculer.
+        setCachedTheme(nextTheme);
         updateUser({ theme: nextTheme });
       };
 
@@ -83,6 +88,11 @@ export function ThemeProvider({ children }) {
         apply();
       }
 
+      if (!user) {
+        loggedOutChoice.current = nextTheme;
+        return; // pas de compte : rien a enregistrer cote serveur
+      }
+
       try {
         await fetch('/api/users/me/theme', {
           method: 'PUT',
@@ -91,15 +101,22 @@ export function ThemeProvider({ children }) {
         });
       } catch (error) {}
     },
-    [updateUser, theme]
+    [updateUser, theme, user]
   );
+
+  // Retourne (une seule fois) le theme choisi avant la connexion, ou null.
+  const takeLoggedOutChoice = useCallback(() => {
+    const value = loggedOutChoice.current;
+    loggedOutChoice.current = null;
+    return value;
+  }, []);
 
   const toggleTheme = useCallback(() => {
     setTheme(theme === 'dark' ? 'light' : 'dark');
   }, [theme, setTheme]);
 
   return (
-    <ThemeContext.Provider value={{ theme, setTheme, toggleTheme }}>{children}</ThemeContext.Provider>
+    <ThemeContext.Provider value={{ theme, setTheme, toggleTheme, takeLoggedOutChoice }}>{children}</ThemeContext.Provider>
   );
 }
 

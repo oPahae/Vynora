@@ -13,6 +13,7 @@ import EditProfileModal from '@/components/profile/editProfileModal';
 import SocialLinksRow from '@/components/profile/socialLinksRow';
 import ProfileMusicPlayer from '@/components/profile/profileMusicPlayer';
 import StatusBadge from '@/components/status/statusBadge';
+import FireLevel from '@/components/profile/fireLevel';
 import { useConfirm } from '@/lib/confirmContext';
 
 import { t } from '@/lib/i18n/runtime';
@@ -167,6 +168,11 @@ export default function ProfileHeader({ profile: initialProfile, relation: initi
                 {profile.firstName} {profile.lastName}
                 {profile.verified && <VerifiedBadge size={22} />}
               </h1>
+              {profile.fire && (
+                <div className="mt-1">
+                  <FireLevel fire={profile.fire} />
+                </div>
+              )}
               {presenceStatus && (
                 <div className="mt-0.5">
                   <StatusBadge status={presenceStatus} />

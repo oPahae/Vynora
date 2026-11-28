@@ -297,6 +297,24 @@ REEL_MAX_FILE_BYTES=        # défaut : 209715200 (200 Mo)
 
 ---
 
+## Nouveautés : thème sur login/register, termes et conditions, localisation, « Proches de moi », niveau de fire
+
+- **Thème clair / sombre** : bouton disponible sur les pages de connexion, d'inscription et sur les pages qui utilisent `AuthLayout` ; le choix suit l'utilisateur après connexion.
+- **Termes et conditions** : page publique `/terms` (8 langues, texte dans `lib/termsContent.js`), case obligatoire à l'inscription (aussi pour l'inscription Google). La version acceptée et la date sont enregistrées (`termsVersion`, `termsAcceptedAt`) ; changer `TERMS_VERSION` dans `lib/constants.js` quand le texte évolue. Texte = modèle général, à faire relire par un juriste.
+- **Localisation** : champ facultatif (inscription et « Modifier le profil »), détecté automatiquement d'après l'IP via `/api/geo/detect` (ipwho.is, ou en-têtes CDN), suggestions de villes via `/api/geo/search` (Open-Meteo, sans clé). Coordonnées arrondies à ~1 km, jamais envoyées aux autres membres. En local (IP privée), la détection ne renvoie rien : saisir une ville.
+- **Amis → « Proches de moi »** : `/api/friends/nearby` (distance Haversine, rayon 10 / 50 / 200 km, distance approximative uniquement).
+- **Niveau de fire** : calculé par `lib/fire.js` (réactions données sur 30 jours, 5 niveaux) et affiché sous le nom dans le profil.
+
+### Migration SQL (base existante)
+Exécutez une seule fois (ne supprime rien) :
+
+```bash
+mysql -u <user> -p <base> < migrations/2026-geo-terms-fire.sql
+```
+Pour une nouvelle installation, `database.sql` contient déjà ces colonnes. **Appliquez la migration avant de redémarrer l'application** : l'inscription écrit dans les nouvelles colonnes.
+
+---
+
 ## Nouveautés : appels, envoi en arrière-plan, partage externe, Market
 
 ### Base de données existante

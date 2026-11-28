@@ -2,6 +2,8 @@ import { getUserFromRequest } from '@/lib/auth';
 import { query } from '@/lib/db';
 import { withProfileUrls } from '@/lib/upload';
 import SOCIAL_LINKS from '@/components/shared/socialLinksConfig';
+import { resolveLocationInput } from '@/lib/geo';
+import { getRequestLocale } from '@/lib/i18n/server';
 
 function sanitize(value, maxLength) {
   return (value || '').toString().trim().slice(0, maxLength);
@@ -55,6 +57,17 @@ export default async function handler(req, res) {
     return res.status(422).json({ success: false, message: 'Le prenom et le nom sont requis' });
   }
 
+  // Localisation (gens proches) : mise a jour seulement si le champ est envoye.
+  // Champ vide = localisation retiree ; libelle sans coordonnees = coordonnees retrouvees par le nom.
+  let place = null;
+  if ('location' in body) {
+    const resolved = await resolveLocationInput(body, getRequestLocale(req));
+    if (!resolved.ok) {
+      return res.status(422).json({ success: false, message: resolved.error, errors: { location: resolved.error } });
+    }
+    place = resolved.value;
+  }
+
   try {
     await query(
       `UPDATE user
@@ -63,10 +76,19 @@ export default async function handler(req, res) {
        WHERE id = ?`,
       [firstName, lastName, bio, work, education, city, country, phone, JSON.stringify(socialLinks), gender, birthDate, payload.id]
     );
+    if (place) {
+      await query('UPDATE user SET location = ?, latitude = ?, longitude = ? WHERE id = ?', [
+        place.location,
+        place.latitude,
+        place.longitude,
+        payload.id
+      ]);
+    }
 
     const rows = await query(
       `SELECT id, firstName, lastName, email, avatarId, coverId, bio, work, education, city, country, phone,
-              gender, birthDate, theme, isPrivate, socialLinks, musicMediaId, musicTitle, musicStartSec, musicEndSec
+              gender, birthDate, theme, isPrivate, socialLinks, musicMediaId, musicTitle, musicStartSec, musicEndSec,
+              location, latitude, longitude
        FROM user WHERE id = ? LIMIT 1`,
       [payload.id]
     );
@@ -74,7 +96,9 @@ export default async function handler(req, res) {
     const user = {
       ...withProfileUrls(rows[0]),
       musicStartSec: rows[0].musicStartSec !== null ? Number(rows[0].musicStartSec) : 0,
-      musicEndSec: rows[0].musicEndSec !== null ? Number(rows[0].musicEndSec) : null
+      musicEndSec: rows[0].musicEndSec !== null ? Number(rows[0].musicEndSec) : null,
+      latitude: rows[0].latitude !== null ? Number(rows[0].latitude) : null,
+      longitude: rows[0].longitude !== null ? Number(rows[0].longitude) : null
     };
 
     return res.status(200).json({ success: true, user });

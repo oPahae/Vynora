@@ -9,6 +9,7 @@ import AccountCenter from '@/components/auth/accountCenter';
 import GoogleAuth, { googleErrorMessage } from '@/components/auth/googleAuth';
 import SaveLoginPrompt from '@/components/auth/saveLoginPrompt';
 import { useAuth } from '@/lib/authContext';
+import { useTheme } from '@/lib/themeContext';
 import { getEmailError, getPasswordError } from '@/lib/validators';
 
 import { t } from '@/lib/i18n/runtime';
@@ -19,6 +20,7 @@ export default function LoginForm() {
   const recaptchaRef = useRef(null);
   const [captchaToken, setCaptchaToken] = useState(null);
   const { login } = useAuth();
+  const { takeLoggedOutChoice } = useTheme();
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [serverError, setServerError] = useState('');
@@ -54,7 +56,18 @@ export default function LoginForm() {
   }
 
   // Une fois connecte : si ce navigateur n'a pas encore ce compte enregistre, on le propose.
-  async function afterAuthenticated(user) {
+  async function afterAuthenticated(authenticatedUser) {
+    // Theme choisi sur la page de connexion (bouton clair / sombre) : il suit l'utilisateur.
+    let user = authenticatedUser;
+    const chosenTheme = takeLoggedOutChoice();
+    if (chosenTheme && chosenTheme !== user.theme) {
+      fetch('/api/users/me/theme', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ theme: chosenTheme })
+      }).catch(() => {});
+      user = { ...user, theme: chosenTheme };
+    }
     login(user);
     try {
       const response = await fetch('/api/auth/saved-logins', { cache: 'no-store' });

@@ -5,6 +5,9 @@ import { hashPassword } from '@/lib/auth';
 import { saveMediaFile } from '@/lib/upload';
 import { startSession, rejectIfBlocked, SESSION_USER_COLUMNS } from '@/lib/loginSession';
 import { rateLimit, getClientIp } from '@/lib/rateLimit';
+import { resolveLocationInput } from '@/lib/geo';
+import { getRequestLocale } from '@/lib/i18n/server';
+import { TERMS_VERSION } from '@/lib/constants';
 
 const JWKS = createRemoteJWKSet(new URL('https://www.googleapis.com/oauth2/v3/certs'));
 
@@ -78,6 +81,16 @@ export default async function handler(req, res) {
     let isNew = false;
 
     if (!user) {
+      // Creation d'un compte : les termes et conditions doivent avoir ete acceptes
+      // (case a cocher de la page d'inscription). Se connecter a un compte existant
+      // n'est pas concerne.
+      if (req.body?.acceptTerms !== true) {
+        return res.status(422).json({
+          success: false,
+          needsTerms: true,
+          message: "Pour creer un compte, acceptez d'abord les termes et conditions depuis la page d'inscription"
+        });
+      }
       const deleted = await query('SELECT reason FROM deletedAccount WHERE email = ? LIMIT 1', [email]);
       if (deleted[0]) {
         return res.status(403).json({
@@ -95,9 +108,18 @@ export default async function handler(req, res) {
       const lastName = String(claims.family_name || fullName.split(' ').slice(1).join(' ') || '-').slice(0, 50);
       // Mot de passe aleatoire : le compte s'utilise via Google (ou "mot de passe oublie").
       const passwordHash = await hashPassword(crypto.randomBytes(32).toString('hex'));
+      // Localisation facultative envoyee par la page d'inscription (jamais bloquante ici).
+      let place = { location: null, latitude: null, longitude: null };
+      try {
+        const resolved = await resolveLocationInput(req.body || {}, getRequestLocale(req));
+        if (resolved.ok) place = resolved.value;
+      } catch (error) {
+        // on cree le compte sans localisation
+      }
       const insert = await query(
-        'INSERT INTO user (firstName, lastName, email, googleId, emailVerifiedAt, password) VALUES (?, ?, ?, ?, NOW(), ?)',
-        [firstName, lastName, email, googleId, passwordHash]
+        `INSERT INTO user (firstName, lastName, email, googleId, emailVerifiedAt, password, location, latitude, longitude, termsAcceptedAt, termsVersion)
+         VALUES (?, ?, ?, ?, NOW(), ?, ?, ?, ?, NOW(), ?)`,
+        [firstName, lastName, email, googleId, passwordHash, place.location, place.latitude, place.longitude, TERMS_VERSION]
       );
       const userId = insert.insertId;
       if (claims.picture) {

@@ -3,6 +3,7 @@ import { readDeviceCookie, newDeviceId, buildDeviceCookie, recordLoginDevice } f
 import { signToken, buildAuthCookie } from '@/lib/auth';
 import { rateLimit, getClientIp } from '@/lib/rateLimit';
 import { consumeVerificationCode, deleteVerificationCodes } from '@/lib/emailVerification';
+import { TERMS_VERSION } from '@/lib/constants';
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const INVALID_CODE_MESSAGE = 'Code invalide ou expire';
@@ -54,10 +55,11 @@ export default async function handler(req, res) {
       return res.status(409).json({ success: false, message: 'Un compte existe deja avec cette adresse email' });
     }
 
-    const { firstName, lastName, passwordHash, gender, birthDate } = result.payload;
+    const { firstName, lastName, passwordHash, gender, birthDate, location, latitude, longitude, termsVersion } = result.payload;
     const insert = await query(
-      'INSERT INTO user (firstName, lastName, email, emailVerifiedAt, password, gender, birthDate) VALUES (?, ?, ?, NOW(), ?, ?, ?)',
-      [firstName, lastName, email, passwordHash, gender, birthDate]
+      `INSERT INTO user (firstName, lastName, email, emailVerifiedAt, password, gender, birthDate, location, latitude, longitude, termsAcceptedAt, termsVersion)
+       VALUES (?, ?, ?, NOW(), ?, ?, ?, ?, ?, ?, NOW(), ?)`,
+      [firstName, lastName, email, passwordHash, gender, birthDate, location || null, latitude ?? null, longitude ?? null, termsVersion || TERMS_VERSION]
     );
     await deleteVerificationCodes('register', email);
     await query('DELETE FROM deletedAccount WHERE email = ?', [email]);

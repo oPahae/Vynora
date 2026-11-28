@@ -3,16 +3,19 @@ import GoogleButton from '@/components/auth/googleButton';
 import { t, td } from '@/lib/i18n/runtime';
 
 // Separateur "ou" + bouton Google. Envoie le jeton a /api/auth/google.
-export default function GoogleAuth({ onAuthenticated, onError, divider = 'below' }) {
+// beforeSubmit : fonction optionnelle ; si elle renvoie false, aucune requete n'est envoyee.
+// extraBody : champs ajoutes a la requete (ex: acceptTerms, localisation a l'inscription).
+export default function GoogleAuth({ onAuthenticated, onError, divider = 'below', beforeSubmit, extraBody }) {
   const [busy, setBusy] = useState(false);
 
   async function handleCredential(credential) {
+    if (beforeSubmit && beforeSubmit() === false) return;
     setBusy(true);
     try {
       const response = await fetch('/api/auth/google', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ credential })
+        body: JSON.stringify({ credential, ...(extraBody || {}) })
       });
       const data = await response.json();
       if (data.success) await onAuthenticated(data.user, data);

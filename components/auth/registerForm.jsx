@@ -6,13 +6,16 @@ import { User, Mail, Lock, Eye, EyeOff, LoaderCircle, Cake, KeyRound, MailCheck 
 import FormField from '@/components/auth/formField';
 import PasswordStrengthMeter from '@/components/auth/passwordStrengthMeter';
 import GoogleAuth, { googleErrorMessage } from '@/components/auth/googleAuth';
+import LocationField from '@/components/shared/locationField';
 import { useAuth } from '@/lib/authContext';
+import { useTheme } from '@/lib/themeContext';
 import { getEmailError, getPasswordError } from '@/lib/validators';
 
-import { t, tRich } from '@/lib/i18n/runtime';
+import { t, td, tRich } from '@/lib/i18n/runtime';
 export default function RegisterForm() {
   const router = useRouter();
   const { login } = useAuth();
+  const { theme } = useTheme();
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [serverError, setServerError] = useState('');
@@ -26,7 +29,11 @@ export default function RegisterForm() {
     email: '',
     password: '',
     gender: '',
-    birthDate: ''
+    birthDate: '',
+    location: '',
+    latitude: null,
+    longitude: null,
+    acceptTerms: false
   });
 
   // Verification au blur : message rouge sous l'input (email : format, mot de passe : taille).
@@ -38,6 +45,23 @@ export default function RegisterForm() {
   function handleChange(field, value) {
     setForm((prev) => ({ ...prev, [field]: value }));
     setErrors((prev) => ({ ...prev, [field]: undefined }));
+  }
+
+  function translateErrors(map) {
+    return Object.fromEntries(Object.entries(map || {}).map(([key, message]) => [key, message ? td(message) : message]));
+  }
+
+  // Localisation (libelle + coordonnees) : facultative, remplie automatiquement.
+  function handleLocationChange(next) {
+    setForm((prev) => ({ ...prev, ...next }));
+    setErrors((prev) => ({ ...prev, location: undefined }));
+  }
+
+  // Les termes doivent etre acceptes (aussi pour l'inscription avec Google).
+  function ensureTermsAccepted() {
+    if (form.acceptTerms) return true;
+    setErrors((prev) => ({ ...prev, acceptTerms: t("Vous devez accepter les termes et conditions pour continuer") }));
+    return false;
   }
 
   useEffect(() => {
@@ -60,12 +84,13 @@ export default function RegisterForm() {
   async function handleSubmit(event) {
     event.preventDefault();
     setServerError('');
+    if (!ensureTermsAccepted()) return;
     setIsSubmitting(true);
 
     try {
       const data = await requestCode();
       if (!data.success) {
-        if (data.errors) setErrors(data.errors);
+        if (data.errors) setErrors(translateErrors(data.errors));
         setServerError(data.message || t("Une erreur est survenue"));
         return;
       }
@@ -117,12 +142,18 @@ export default function RegisterForm() {
       const data = await response.json();
 
       if (!data.success) {
-        if (data.errors) setErrors(data.errors);
+        if (data.errors) setErrors(translateErrors(data.errors));
         setServerError(data.message || t("Une erreur est survenue"));
         return;
       }
 
-      login(data.user);
+      // Le theme choisi sur la page d'inscription est conserve pour le nouveau compte.
+      fetch('/api/users/me/theme', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ theme })
+      }).catch(() => {});
+      login({ ...data.user, theme });
       router.push('/');
     } catch (error) {
       setServerError(t("Impossible de contacter le serveur"));
@@ -199,6 +230,13 @@ export default function RegisterForm() {
     <form onSubmit={handleSubmit} className="space-y-4">
       <GoogleAuth
         divider="above"
+        beforeSubmit={ensureTermsAccepted}
+        extraBody={{
+          acceptTerms: form.acceptTerms,
+          location: form.location,
+          latitude: form.latitude,
+          longitude: form.longitude
+        }}
         onAuthenticated={(user) => {
           login(user);
           router.push('/');
@@ -304,6 +342,46 @@ export default function RegisterForm() {
         max={new Date().toISOString().slice(0, 10)}
       />
       <p className="text-xs text-slate-400 -mt-2">{t("La date de naissance est optionnelle.")}</p>
+
+      <div>
+        <label className="text-xs font-medium text-slate-500 mb-1.5 block">{t("Localisation (optionnel)")}</label>
+        <LocationField
+          autoDetect
+          value={{ location: form.location, latitude: form.latitude, longitude: form.longitude }}
+          onChange={handleLocationChange}
+          error={errors.location}
+        />
+        <p className="text-xs text-slate-400 mt-1.5 ms-1">
+          {t("Elle sert uniquement a detecter les personnes proches de vous. Detectee automatiquement : vous pouvez la modifier ou vider ce champ pour ne pas la renseigner. Vous pourrez la changer plus tard dans votre profil.")}
+        </p>
+      </div>
+
+      <div>
+        <label className="flex items-start gap-3 cursor-pointer select-none">
+          <input
+            type="checkbox"
+            checked={form.acceptTerms}
+            onChange={(e) => handleChange('acceptTerms', e.target.checked)}
+            aria-invalid={errors.acceptTerms ? true : undefined}
+            className="mt-0.5 h-[18px] w-[18px] shrink-0 rounded border-slate-300 accent-brand-600 cursor-pointer"
+          />
+          <span className="text-sm text-slate-600 leading-snug">
+            {tRich("J'accepte les {terms}", {
+              terms: (
+                <Link
+                  href="/terms"
+                  target="_blank"
+                  rel="noopener"
+                  className="text-blue-600 underline underline-offset-2 hover:text-blue-700"
+                >
+                  {t("termes et conditions")}
+                </Link>
+              )
+            })}
+          </span>
+        </label>
+        {errors.acceptTerms && <p className="text-xs text-red-500 mt-1.5 ms-8">{errors.acceptTerms}</p>}
+      </div>
 
       <button
         type="submit"

@@ -6,6 +6,7 @@ import { APP_NAME } from '@/lib/constants';
 
 import { t } from '@/lib/i18n/runtime';
 import LanguageSwitcher from '@/components/shared/languageSwitcher';
+import ThemeToggle from '@/components/shared/themeToggle';
 
 const features = [
   { icon: Users, get label() { return t("Retrouvez vos amis et votre communaute"); } },
@@ -188,7 +189,10 @@ export default function AuthLayout({ title, subtitle, children }) {
 
       {/* Formulaire : directement sur le canevas, sans carte superflue */}
       <div className="relative flex-1 flex flex-col items-center justify-center px-5 sm:px-8 py-14 pt-safe pb-safe">
-        <div className="absolute top-4 end-4 z-20 pt-safe"><LanguageSwitcher /></div>
+        <div className="absolute top-4 end-4 z-20 pt-safe flex items-center gap-2">
+          <ThemeToggle />
+          <LanguageSwitcher />
+        </div>
         <motion.div
           initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
           className="w-full max-w-[26rem]"
