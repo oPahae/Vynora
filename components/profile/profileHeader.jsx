@@ -168,17 +168,14 @@ export default function ProfileHeader({ profile: initialProfile, relation: initi
                 {profile.firstName} {profile.lastName}
                 {profile.verified && <VerifiedBadge size={22} />}
               </h1>
-              {profile.fire && (
-                <div className="mt-1">
-                  <FireLevel fire={profile.fire} />
-                </div>
-              )}
               {presenceStatus && (
                 <div className="mt-0.5">
                   <StatusBadge status={presenceStatus} />
                 </div>
               )}
               <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1 text-sm text-slate-500">
+                {/* Niveau de fire sur la meme ligne que les amis / la ville : ne rajoute aucune hauteur au bloc du nom. */}
+                {profile.fire && <FireLevel fire={profile.fire} className="!py-0.5" />}
                 <span className="flex items-center gap-1">
                   <Users size={14} />{' '}{t("{friendsCount} amis", { friendsCount })}</span>
                 {!isSelf && mutualFriendsCount > 0 && <span>{t("{mutualFriendsCount} amis en commun", { mutualFriendsCount })}</span>}
